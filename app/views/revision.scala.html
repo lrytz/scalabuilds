@@ -1,0 +1,60 @@
+@(commit: Commit, refreshing: Boolean, jenkinsJob: String)
+
+@import helper._
+
+@main("Scala Commits") {
+  <h1>Commit Details</h1>
+
+  <p><a href="/">[all commits]</a></p>
+
+  <p>@commit.dateString (@commit.githubUser / @commit.authorName),
+  <a href="https://github.com/scala/scala/commit/@commit.sha" target="_blank">@{commit.sha.take(10)} on github</a></p>
+
+  @if(refreshing) {
+    @commit.state.describe(refreshing)
+  } else {
+    @defining(commit.state) { cs => @cs match {
+      case Missing => {
+        <p>@commit.state.describe(refreshing)</p>
+        @form(routes.Application.startBuild(commit.sha)) {
+          <input type="submit" value="start jenkins build"/>
+        }
+      }
+  
+      case Searching => {
+        <p>@commit.state.describe(refreshing) (UUID: @commit.jenkinsBuildUUID.get)</p>
+        @form(routes.Application.refresh(commit.sha)) {
+          <input type="submit" value="refresh state"/>
+        }
+        @form(routes.Application.cancelBuild(commit.sha)) {
+          <input type="submit" value="cancel search"/>
+        }
+      }
+  
+      case Running | Downloading => {
+        <p>@commit.state.describe(refreshing): <a href="https://scala-webapps.epfl.ch/jenkins/job/@jenkinsJob/@commit.jenkinsBuild.get" target="_blank">#@commit.jenkinsBuild.get</a></p>
+        @form(routes.Application.refresh(commit.sha)) {
+          <input type="submit" value="refresh state"/>
+        }
+        @form(routes.Application.cancelBuild(commit.sha)) {
+          <input type="submit" value="cancel following this build"/>
+        }
+      }
+  
+      case Done => {
+        <p>@commit.state.describe(refreshing): <a href="https://scala-webapps.epfl.ch/jenkins/job/@jenkinsJob/@commit.jenkinsBuild.get" target="_blank">#@commit.jenkinsBuild.get</a></p>
+        <ul>
+        @controllers.Artifacts.artifactsFor(commit.sha).map { file =>
+          <li><a href="@commit.sha/artifacts/@file">@file</a> (<a href="@commit.sha/viewArtifact/@file" target="_blank">view</a>)</li>
+        }
+        </ul>
+        @form(routes.Application.startBuild(commit.sha)) {
+          <input type="submit" value="start new jenkins build"/>
+        }
+        @form(routes.Application.cancelBuild(commit.sha)) {
+          <input type="submit" value="unlink from jenkins build"/>
+        }
+      }
+    }}
+  }
+}

@@ -1,0 +1,37 @@
+@(commits: List[Commit], refreshing: Set[String], state: UpdateState, p: Int)
+
+@import helper._
+
+@main("Scala Commits") {
+  <h1>Recent Commits</h1>
+
+  <ul>
+    @commits.map { commit =>
+      <li>
+        @* add links: to github, to page with actions for the build, to jenkins page *@
+        @commit.dateString (@commit.githubUser / @commit.authorName),
+        <a href="rev/@commit.sha">@{commit.sha.take(10)}</a>,
+        @commit.state.describe(refreshing(commit.sha))
+      </li>
+    }
+  </ul>
+
+  @if(p > 1) {
+    <a href=?p=@{p-1}>newer</a> -
+  }
+  <a href=?p=@{p+1}>older</a>
+
+  @if(state == Idle) {
+    @form(routes.Application.updateRepo()) {
+      <input type="submit" value="update repo"/>
+    }
+  } else {
+    <p>
+      updating commits from repo...
+    </p>
+  }
+
+  @form(routes.Application.refreshAll()) {
+    <input type="submit" value="refresh all build states"/>
+  }
+}
