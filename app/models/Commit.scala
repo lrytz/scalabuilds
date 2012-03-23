@@ -3,6 +3,8 @@ package models
 import java.util.Date
 import java.text.SimpleDateFormat
 
+import play.api.Logger
+
 import anorm._
 import anorm.SqlParser._
 
@@ -56,21 +58,25 @@ case object Commit {
           ).as(commitParser *)
     }
   }
-  
+
   def addCommits(commits: List[Commit]) {
     for (c <- commits) {
-      DB.withConnection { implicit conn =>
-        // (sha, commitDate, githubUser, authorName, jenkinsBuild, state)
-        SQL("insert into commit values ({sha}, {date}, {user}, {name}, {state}, {build}, {buildUUID}, {buildSuccess})").on(
-            'sha -> c.sha,
-            'date -> c.commitDate.getTime,
-            'user -> c.githubUser,
-            'name -> c.authorName,
-            'state -> c.state.toString,
-            'build -> c.jenkinsBuild,
-            'buildUUID -> c.jenkinsBuildUUID,
-            'buildSuccess -> c.buildSuccess
-            ).executeUpdate()
+      if (commit(c.sha).isDefined) {
+        Logger.error("Commit already exists in the database: "+ c)
+      } else {
+        DB.withConnection { implicit conn =>
+          // (sha, commitDate, githubUser, authorName, jenkinsBuild, state)
+          SQL("insert into commit values ({sha}, {date}, {user}, {name}, {state}, {build}, {buildUUID}, {buildSuccess})").on(
+              'sha -> c.sha,
+              'date -> c.commitDate.getTime,
+              'user -> c.githubUser,
+              'name -> c.authorName,
+              'state -> c.state.toString,
+              'build -> c.jenkinsBuild,
+              'buildUUID -> c.jenkinsBuildUUID,
+              'buildSuccess -> c.buildSuccess
+              ).executeUpdate()
+        }
       }
     }
   }

@@ -12,24 +12,57 @@ import models._
 private[github] case class GithubAuthor(email: String, name: String, date: String)
 private[github] case class GithubUser(url: String, gravatar_id: String, avatar_url: String, login: String, id: Int)
 private[github] case class GithubCommitDetails(url: String, committer: GithubAuthor, message: String, author: GithubAuthor, tree: JsValue)
+
+/* For fetchRevisions, when getting a list of commits */
 private[github] case class GithubCommit(committer: Option[GithubUser], url: String, author: Option[GithubUser], parents: JsValue, commit: GithubCommitDetails, sha: String)
+
+/* For revisionInfo, when reading a single commit's info */
+private[github] case class DetailedGithubCommit(committer: Option[GithubUser], url: String, author: Option[GithubUser], parents: JsValue, commit: GithubCommitDetails, sha: String, stats: JsValue, files: JsValue)
 
 private[github] object GithubJsonProtocol extends DefaultJsonProtocol {
   implicit val githubAuthorFormat = jsonFormat3(GithubAuthor)
   implicit val githubUserFormat = jsonFormat5(GithubUser)
   implicit val githubCommitDetailsFormat = jsonFormat5(GithubCommitDetails)
   implicit val githubCommitFormat = jsonFormat6(GithubCommit)
+  implicit val detailedGithubCommitFormat = jsonFormat8(DetailedGithubCommit)
 }
 
 object GithubTools {
   import GithubJsonProtocol._
   import Config._
-  
+
   // Date example: 2012-03-16T02:01:25-07:00
   // http://stackoverflow.com/questions/2201925/converting-iso8601-compliant-string-to-java-util-date
   val dateParser = ISODateTimeFormat.dateTimeNoMillis();
   def parseISO8601(date: String): Date = {
     dateParser.parseDateTime(date).toDate()
+  }
+  
+  def revisionInfo(sha: String): Commit = {
+    val req = url("https://api.github.com/repos/"+githubUser+"/"+githubRepo+"/commits/"+ sha)
+    val commit = Http(req >:+ { (headers, req) =>
+      // todo: check stuff with header, fail if problem
+
+      // handle request
+      req >- { jsonString =>
+        JsonParser(jsonString).convertTo[DetailedGithubCommit]
+      }
+
+/* spray does not support InputStream
+      req >> { in =>
+        JsonParser(in).convertTo[List[GithubCommit]]
+      } */
+    })
+    Commit(
+      commit.sha,
+      parseISO8601(commit.commit.committer.date),
+      commit.author.map(u => u.login),
+      commit.commit.author.name,
+      Missing,
+      None,
+      None,
+      None
+    )
   }
 
   def fetchRevisions(/*lastSha: Option[String],*/ num: Int): List[Commit] = {
@@ -95,9 +128,4 @@ we get fb44bb28b8b3e7861b96c874dc79072f89fec10b, the two commits in between are 
         Stream.cons(x, revisionStream(/*Some(x.sha),*/ i+1, xs))
     }
   }
-}
-
-object Test extends App {
-  import GithubTools._
-  for (r <- fetchRevisions(/*None,*/ 2)) println(r)
 }

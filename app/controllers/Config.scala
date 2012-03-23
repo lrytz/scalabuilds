@@ -8,7 +8,7 @@ object Config {
   val enablePollings = true
   
   val updatePollFrequency = 1 minute
-  val refreshRunningBuildsFrequency = 30 seconds
+  val refreshRunningBuildsFrequency = 5 minutes
   
   val githubUser = "scala"
   val githubRepo = "scala"
@@ -16,9 +16,11 @@ object Config {
     
   val jenkinsUrl = "https://scala-webapps.epfl.ch/jenkins/"
   val jenkinsJob = "scala-checkin"
-    
+
+  val localGitRepoDir = "git-repo"
+
   val artifactsDir = "artifacts"
-  
+
   val jenkinsCredentialsFile = "/Users/luc/scala/scalabuilds/jenkinsCredentials.json"
   private def read(field: String) = {
     import cc.spray.json._
@@ -29,4 +31,7 @@ object Config {
   }
   lazy val jenkinsUsername = read("username")
   lazy val jenkinsPassword = read("password")
+
+
+  val oldestImportedCommit = "0cffdf38d9e2d88e66d8649d317f8815716b2748"
 }

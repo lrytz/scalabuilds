@@ -4,13 +4,13 @@ import play.api._
 import play.api.mvc._
 
 import play.api.db._
-import play.api.Play.current
 
 import play.api.libs.concurrent.Akka
+import play.api.Play.current
+
 import akka.actor.Props
 import akka.util.duration._
 import play.api.libs.concurrent.Promise
-import scala.concurrent.stm._
 
 import anorm._
 import java.util.UUID
@@ -21,58 +21,42 @@ import github._
 import jenkins._
 import models._
 
+import UpdateRepoActor.submitUpdateTask
+import BuildTasksDispatcher.submitBuildTask
+
 object Application extends Controller {
 
-  val pollGithubActor = Akka.system.actorOf(Props[PollGithubActor])
+  /**
+   * The actors
+   */
+  val updateRepoActor = Akka.system.actorOf(Props[UpdateRepoActor])
   if (Config.enablePollings)
-    Akka.system.scheduler.schedule(30 seconds, Config.updatePollFrequency, pollGithubActor, "update")
+    Akka.system.scheduler.schedule(30 seconds, Config.updatePollFrequency, updateRepoActor, "update")
   
-  val refreshBuildsActor = Akka.system.actorOf(Props[RefreshBuildsActor])
+  val refreshRunningBuildsActor = Akka.system.actorOf(Props[RefreshRunningBuildsActor])
   if(Config.enablePollings)
-    Akka.system.scheduler.schedule(10 seconds, Config.refreshRunningBuildsFrequency, refreshBuildsActor, "refresh")
+    Akka.system.scheduler.schedule(30 seconds, Config.refreshRunningBuildsFrequency, refreshRunningBuildsActor, "refresh")
 
-  /* Ref to prevent concurrent updates of the revision list */
-  val appState = Ref[UpdateState](Idle)
+  val buildTasksDispatcherActor = Akka.system.actorOf(Props[BuildTasksDispatcher])
 
-  /* Ref to prevent concurrent write tasks on a commit */
-  val commitTasks = Ref[imm.Map[String, Promise[Unit]]](imm.Map())
-  private[controllers] def submitCommitTask(sha: String, action: => Unit): Boolean = {
-    atomic { implicit txn =>
-      commitTasks().get(sha) match {
-        case None =>
-          commitTasks.transform(_ + (sha -> Akka.future {
-            try {
-              action
-            } catch {
-              case e =>
-                Logger.error(e.getClass.toString +": "+ e.getMessage +"\n"+ e.getStackTraceString)
-                throw e
-            } finally {
-              commitTasks.single.transform(_ - sha)
-            }
-          }))
-          true
-        case Some(_) =>
-          false
-      }
-    }
-  }
   
-  //val pollUpdateActor = Akka.system.actorOf()
-
+  /**
+   * The page actions
+   */
 
   def index(page: Int) = Action {
     if (page < 1) NotFound(views.html.error("Page index out of bounds: "+ page))
     else {
       val commits = Commit.commits(page = page)
-      val refreshing = commitTasks.single().keySet.toSet
-      Ok(views.html.index(commits, refreshing, appState.single(), page))
+      val refreshing = BuildTasksDispatcher.busyList
+      Ok(views.html.index(commits, refreshing, UpdateRepoActor.appState, page))
     }
   }
 
   def revPage(sha: String) = Action {
+    val isRefreshing = BuildTasksDispatcher.busyList(sha)
     Commit.commit(sha) match {
-      case Some(c) => Ok(views.html.revision(c, commitTasks.single().contains(sha), Config.jenkinsJob))
+      case Some(c) => Ok(views.html.revision(c, isRefreshing, Config.jenkinsJob))
       case None => NotFound(views.html.error("Unknown commit hash: "+ sha))
     }
   }
@@ -93,7 +77,7 @@ object Application extends Controller {
   }
   
   def startBuild(sha: String) = {
-    val ok = submitCommitTask(sha, doStartBuild(sha))
+    val ok = submitBuildTask(sha, doStartBuild(sha))
     Action {
       if (ok) Redirect(routes.Application.revPage(sha))
       else Conflict(views.html.error("Could not start build, action in progress for "+ sha))
@@ -101,7 +85,7 @@ object Application extends Controller {
   }
 
   def cancelBuild(sha: String) = {
-    val ok = submitCommitTask(sha, doCancel(sha))
+    val ok = submitBuildTask(sha, doCancel(sha))
     Action {
       if (ok) Redirect(routes.Application.revPage(sha))
       else Conflict(views.html.error("Could not cancel build, action in progress for "+ sha))
@@ -109,7 +93,7 @@ object Application extends Controller {
   }
 
   def refresh(sha: String) = {
-    val ok = submitCommitTask(sha, doRefresh(sha))
+    val ok = submitBuildTask(sha, doRefresh(sha))
     Action {
       if (ok) Redirect(routes.Application.revPage(sha))
       else Conflict("Could not refresh build, action in progress for "+ sha)
@@ -119,7 +103,7 @@ object Application extends Controller {
   
   def updateRepo() = {
     Action {
-      if (submitUpdateRepoTask()) Redirect(routes.Application.index())
+      if (submitUpdateTask()) Redirect(routes.Application.index())
       else Conflict(views.html.error("Repository update already in progress."))
     }
   }
@@ -130,33 +114,11 @@ object Application extends Controller {
       Redirect(routes.Application.index())
     }
   }
-  
-
-  private[controllers] def submitUpdateRepoTask() = {
-    atomic { implicit txn =>
-      appState() match {
-        case Idle =>
-          appState() = Updating(Akka.future {
-            val res = try { 
-              doUpdateRepo()
-            } catch {
-              case e => 
-                Logger.error(e.getClass.toString +": "+ e.getMessage +"\n"+ e.getStackTraceString)
-                throw e
-            } finally {
-              appState.single() = Idle
-            }
-            res
-          })
-          true
-        case Updating(_) =>
-          false
-      }
-    }
-  }
 
 
-  /* The action logic */
+  /**
+   * The application logic
+   */
   
   private def doStartBuild(sha: String) {
     Commit.commit(sha) match {
@@ -198,6 +160,7 @@ object Application extends Controller {
             Logger.info("Canceling "+ commit)
             Commit.updateJenkinsBuild(sha, None)
             Commit.updateJenkinsBuildUUID(sha, None)
+            Commit.updateBuildSuccess(sha, None)
             Commit.updateState(sha, Missing)
         }
         
@@ -210,10 +173,13 @@ object Application extends Controller {
   private[controllers] def doRefreshAll() {
     for (commit <- Commit.runningCommits) {
       Logger("refreshing build "+ commit)
-      submitCommitTask(commit.sha, doRefresh(commit.sha))
+      submitBuildTask(commit.sha, doRefresh(commit.sha))
     }
   }
   
+  /**
+   * The state machine of a commit being built
+   */
   private def doRefresh(sha: String) {
     import JenkinsTools._
     
@@ -262,19 +228,24 @@ object Application extends Controller {
   }
 
 
-  private def doUpdateRepo(): List[Commit] = {
+  private[controllers] def doUpdateRepo() {
     val commits = Commit.commits(page = 1, num = 1)
     if (commits.isEmpty) {
       Logger.error("No existing commits found when trying doUpdateRepo")
       Nil
     } else {
       val latest = commits.head
-      val newCommits = GithubTools.revisionStream().takeWhile(_.sha != latest.sha).toList
-      Logger.info("Fetched new commits: "+ newCommits)
-      Commit.addCommits(newCommits)
-      for (commit <- newCommits)
-        submitCommitTask(commit.sha, doStartBuild(commit.sha))
-      newCommits
+      val newShas = LocalGitRepo.newCommitsSince(latest.sha)
+      if (newShas.isEmpty) {
+        Logger.info("No new commits.")
+      } else {
+        val newCommits = newShas.map(GithubTools.revisionInfo(_))
+        //val newCommits = GithubTools.revisionStream().takeWhile(_.sha != latest.sha).toList
+        Logger.info("Fetched new commits: "+ newCommits)
+        Commit.addCommits(newCommits)
+        for (commit <- newCommits)
+          submitBuildTask(commit.sha, doStartBuild(commit.sha))
+      }
     }
   }
 
@@ -282,13 +253,14 @@ object Application extends Controller {
   
   
   
-  /*********************
-   * STUFF 
-   *********************/
+  /**
+   * Random stuff
+   */
 
   
   def initRepo() = {
-    val commits = GithubTools.fetchRevisions(100)
+    val shas = LocalGitRepo.newCommitsSince(Config.oldestImportedCommit).filter(r => (Commit.commit(r).isEmpty))
+    val commits = shas.map(sha => GithubTools.revisionInfo(sha))
     Commit.addCommits(commits)
     Action {
       Redirect(routes.Application.index())

@@ -12,7 +12,6 @@ object ApplicationBuild extends Build {
       // "org.eclipse.jgit" % "org.eclipse.jgit" % "1.3.0.201202151440-r"
       "net.databinder" %% "dispatch-http" % "0.8.8",
       "cc.spray" %%  "spray-json" % "1.1.1",
-      "org.scala-tools" %% "scala-stm" % "0.5",
       "com.github.scala-incubator.io" %% "scala-io-core" % "0.3.0",
       "com.github.scala-incubator.io" %% "scala-io-file" % "0.3.0",
       "joda-time" % "joda-time" % "2.1"

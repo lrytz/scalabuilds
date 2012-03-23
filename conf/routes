@@ -13,7 +13,7 @@ GET     /rev/:sha/viewArtifact/*name controllers.Application.download(sha: Strin
 # Actions
 POST    /update                      controllers.Application.updateRepo()
 POST    /refreshAll                  controllers.Application.refreshAll()
-# GET     /init                        controllers.Application.initRepo()
+GET     /init                        controllers.Application.initRepo()
 
 POST    /rev/:sha/startBuild         controllers.Application.startBuild(sha: String)
 POST    /rev/:sha/cancelBuild        controllers.Application.cancelBuild(sha: String)
