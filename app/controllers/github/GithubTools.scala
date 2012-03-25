@@ -14,7 +14,7 @@ private[github] case class GithubUser(url: String, gravatar_id: String, avatar_u
 private[github] case class GithubCommitDetails(url: String, committer: GithubAuthor, message: String, author: GithubAuthor, tree: JsValue)
 
 /* For fetchRevisions, when getting a list of commits */
-private[github] case class GithubCommit(committer: Option[GithubUser], url: String, author: Option[GithubUser], parents: JsValue, commit: GithubCommitDetails, sha: String)
+//private[github] case class GithubCommit(committer: Option[GithubUser], url: String, author: Option[GithubUser], parents: JsValue, commit: GithubCommitDetails, sha: String)
 
 /* For revisionInfo, when reading a single commit's info */
 private[github] case class DetailedGithubCommit(committer: Option[GithubUser], url: String, author: Option[GithubUser], parents: JsValue, commit: GithubCommitDetails, sha: String, stats: JsValue, files: JsValue)
@@ -23,7 +23,7 @@ private[github] object GithubJsonProtocol extends DefaultJsonProtocol {
   implicit val githubAuthorFormat = jsonFormat3(GithubAuthor)
   implicit val githubUserFormat = jsonFormat5(GithubUser)
   implicit val githubCommitDetailsFormat = jsonFormat5(GithubCommitDetails)
-  implicit val githubCommitFormat = jsonFormat6(GithubCommit)
+//  implicit val githubCommitFormat = jsonFormat6(GithubCommit)
   implicit val detailedGithubCommitFormat = jsonFormat8(DetailedGithubCommit)
 }
 
@@ -65,10 +65,9 @@ object GithubTools {
     )
   }
 
-  def fetchRevisions(/*lastSha: Option[String],*/ num: Int): List[Commit] = {
-    val urlStr = "https://api.github.com/repos/"+githubUser+"/"+githubRepo+"/commits?"
-
 /*
+fetching new revisions is not done through github. there are problems with the pagination scheme due to the graph nature of commits.
+
 in the list of commits (https://github.com/scala/scala/commits/) we have the following order:
 
 eb8afde6882a945caa029a2ea9daeb43c590f5ca
@@ -90,6 +89,11 @@ we get fb44bb28b8b3e7861b96c874dc79072f89fec10b, the two commits in between are 
     val args = "per_page="+ num +"&sha="+ githubBranch + "&top="+ githubBranch
 */
 
+/*
+  def fetchRevisions(/*lastSha: Option[String],*/ num: Int): List[Commit] = {
+    val urlStr = "https://api.github.com/repos/"+githubUser+"/"+githubRepo+"/commits?"
+
+
     val args = "per_page="+ num +"&sha="+ githubBranch
     val req = url(urlStr + args)
     val res = Http(req >:+ { (headers, req) =>
@@ -99,11 +103,6 @@ we get fb44bb28b8b3e7861b96c874dc79072f89fec10b, the two commits in between are 
       req >- { jsonString =>
         JsonParser(jsonString).convertTo[List[GithubCommit]]
       }
-
-/* spray does not support InputStream
-      req >> { in =>
-        JsonParser(in).convertTo[List[GithubCommit]]
-      } */
     })
     res.map(commit => Commit(
       commit.sha,
@@ -128,4 +127,5 @@ we get fb44bb28b8b3e7861b96c874dc79072f89fec10b, the two commits in between are 
         Stream.cons(x, revisionStream(/*Some(x.sha),*/ i+1, xs))
     }
   }
+*/
 }

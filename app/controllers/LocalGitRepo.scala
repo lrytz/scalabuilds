@@ -1,3 +1,7 @@
+
+// no longer in use - now a separate webapp (having a local repo is not possible on heroku)
+
+/*
 package controllers
 
 import scalax.file._
@@ -30,3 +34,4 @@ object LocalGitRepo {
     Process("git rev-list HEAD", someRepoFile).lines.toList
   }
 }
+*/

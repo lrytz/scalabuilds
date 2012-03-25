@@ -12,8 +12,8 @@ GET     /logout                      controllers.Application.logout
 # Pages
 GET     /                            controllers.Application.index(p: Int ?= 1)
 GET     /rev/:sha                    controllers.Application.revPage(sha: String)
-GET     /rev/:sha/artifacts/*name    controllers.Application.download(sha: String, name: String, view: Boolean = false)
-GET     /rev/:sha/viewArtifact/*name controllers.Application.download(sha: String, name: String, view: Boolean = true)
+# GET     /rev/:sha/artifacts/*name    controllers.Application.download(sha: String, name: String, view: Boolean = false)
+# GET     /rev/:sha/viewArtifact/*name controllers.Application.download(sha: String, name: String, view: Boolean = true)
 
 # GET     /test                      controllers.Application.testPage
 

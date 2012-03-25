@@ -15,8 +15,6 @@ import akka.actor.Props
 import akka.util.duration._
 import play.api.libs.concurrent.Promise
 
-//import dispatch.Http
-
 import anorm._
 import java.util.UUID
 
@@ -112,6 +110,7 @@ object Application extends Controller {
     }
   }
 
+/*
   def download(sha: String, file: String, read: Boolean) = Action {
     import play.api.libs.iteratee.Enumerator
     import scalax.file._
@@ -126,7 +125,8 @@ object Application extends Controller {
       NotFound(views.html.error("File not found: "+ sha +"/artifacts/"+ file))
     }
   }
-  
+*/
+
   def startBuild(sha: String) = AuthAction { _ =>
     val ok = submitBuildTask(sha, doStartBuild(sha))
     if (ok) Redirect(routes.Application.revPage(sha))
@@ -248,7 +248,8 @@ object Application extends Controller {
                 Commit.updateBuildSuccess(sha, jenkinsInfo.buildSuccess)
                 Commit.updateState(sha, Downloading)
                 try {
-                  Artifacts.downloadArtifacts(commit)
+//                  Artifacts.downloadArtifacts(commit)
+                  Artifact.storeArtifacts(commit)
                 } finally {
                   Commit.updateState(commit.sha, Done)
                 }
@@ -268,6 +269,17 @@ object Application extends Controller {
     
   }
 
+  
+  private def newCommitsSince(sha: String) = {
+    import dispatch._
+    val req = url(Config.revListerUrl + sha)
+    Http(req >- { res =>
+      res match {
+        case "" => Nil
+        case s  => s.split(",").toList
+      }
+    })
+  }
 
   private[controllers] def doUpdateRepo() {
     val commits = Commit.commits(page = 1, num = 1)
@@ -276,7 +288,7 @@ object Application extends Controller {
       Nil
     } else {
       val latest = commits.head
-      val newShas = LocalGitRepo.newCommitsSince(latest.sha)
+      val newShas = newCommitsSince(latest.sha)
       if (newShas.isEmpty) {
         Logger.info("No new commits.")
       } else {
@@ -293,14 +305,13 @@ object Application extends Controller {
   
   
   
-  
+ 
   /**
    * Random stuff
    */
 
-  
   def initRepo() = AuthAction { _ =>
-    val shas = LocalGitRepo.newCommitsSince(Config.oldestImportedCommit).filter(r => (Commit.commit(r).isEmpty))
+    val shas = newCommitsSince(Config.oldestImportedCommit).filter(r => (Commit.commit(r).isEmpty))
     val commits = shas.map(sha => GithubTools.revisionInfo(sha))
     Commit.addCommits(commits)
     Redirect(routes.Application.index())

@@ -1,3 +1,6 @@
+// no longer in use. we keep them on jenkins
+
+/*
 package controllers
 
 import play.api.Logger
@@ -40,7 +43,6 @@ object Artifacts {
       }
     }
     Logger.info("Done downloading artifacts for "+ commit)
-    Commit.updateState(commit.sha, Done)
   }
   
   private def download(url: String, outFile: String) {
@@ -51,3 +53,4 @@ object Artifacts {
     in.copyDataTo(out)
   }
 }
+*/

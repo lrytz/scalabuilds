@@ -44,10 +44,18 @@
       }
   
       case Done => {
-        <p>@commit.state.describe(refreshing): <a href="https://scala-webapps.epfl.ch/jenkins/job/@jenkinsJob/@commit.jenkinsBuild.get" target="_blank">#@commit.jenkinsBuild.get</a></p>
+        <p>@commit.state.describe(refreshing): <a href="https://scala-webapps.epfl.ch/jenkins/job/@jenkinsJob/@commit.jenkinsBuild.get" target="_blank">#@commit.jenkinsBuild.get</a>. Result:
+          @if(commit.buildSuccess.get) {
+            <img src="https://scala-webapps.epfl.ch/jenkins/static/e3c74e88/images/16x16/blue.png"/>
+          } else {
+            <img src="https://scala-webapps.epfl.ch/jenkins/static/e3c74e88/images/16x16/red.png"/>
+          }
+        </p>
+
+        <p><a href="https://scala-webapps.epfl.ch/jenkins/job/@jenkinsJob/@commit.jenkinsBuild.get/consoleFull" target="_blank"/>build log</a></p>
         <ul>
-        @controllers.Artifacts.artifactsFor(commit.sha).map { file =>
-          <li><a href="@commit.sha/artifacts/@file">@file</a> (<a href="@commit.sha/viewArtifact/@file" target="_blank">view</a>)</li>
+        @models.Artifact.artifactsFor(commit.sha).map { artifact =>
+          <li><a href="https://scala-webapps.epfl.ch/jenkins/job/@jenkinsJob/@commit.jenkinsBuild.get/artifact/@artifact.filePath" target="_blank">@artifact.filePath</a></li>
         }
         </ul>
         @aform(routes.Application.startBuild(commit.sha)) {

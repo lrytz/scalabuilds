@@ -13,11 +13,13 @@ object Config {
   val githubUser = "scala"
   val githubRepo = "scala"
   val githubBranch = "master"
-    
+
   val jenkinsUrl = "https://scala-webapps.epfl.ch/jenkins/"
   val jenkinsJob = "scala-checkin"
 
-  val localGitRepoDir = "git-repo"
+//  val localGitRepoDir = "git-repo"
+    
+  val revListerUrl = "http://localhost:9001/"
 
   val artifactsDir = "artifacts"
 
