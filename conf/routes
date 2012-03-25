@@ -2,6 +2,13 @@
 # This file defines all application routes (Higher priority routes first)
 # ~~~~
 
+# Login
+
+GET     /login                       controllers.Application.login(message: String ?= "")
+POST    /login                       controllers.Application.loginPost()
+GET     /loginCallback               controllers.Application.openIDCallback
+GET     /logout                      controllers.Application.logout
+
 # Pages
 GET     /                            controllers.Application.index(p: Int ?= 1)
 GET     /rev/:sha                    controllers.Application.revPage(sha: String)

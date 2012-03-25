@@ -1,0 +1,13 @@
+@(message: String)
+
+@import helper._
+
+@main("Scala Commits") {
+  <h1>Login</h1>
+
+  <p>@message</p>
+
+  @form(routes.Application.loginPost()) {
+    <input type="submit" value="Login with Google (OpenID)"/>
+  }
+}

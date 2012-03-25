@@ -5,12 +5,17 @@ import play.api.mvc._
 
 import play.api.db._
 
+import play.api.libs.openid._
+import play.api.libs.concurrent.{Redeemed, Thrown}
+
 import play.api.libs.concurrent.Akka
 import play.api.Play.current
 
 import akka.actor.Props
 import akka.util.duration._
 import play.api.libs.concurrent.Promise
+
+//import dispatch.Http
 
 import anorm._
 import java.util.UUID
@@ -41,22 +46,68 @@ object Application extends Controller {
 
   
   /**
-   * The page actions
+   * Login related
+   */
+  
+  def login(message: String) = Action {
+    Ok(views.html.login(message))
+  }
+  
+  def loginPost() = Action { implicit request =>
+    val discoveryUrl = "https://www.google.com/accounts/o8/id"
+    val requireEmail = List("email" -> "http://axschema.org/contact/email")
+    val redirUrl = OpenID.redirectURL(discoveryUrl, routes.Application.openIDCallback.absoluteURL(), axRequired = requireEmail)
+    AsyncResult(redirUrl.extend(_.value match {
+      case Redeemed(url) => Redirect(url)
+      case Thrown(t) => Redirect(routes.Application.login(t.toString))
+    }))
+  }
+  
+  def openIDCallback() = Action { implicit request =>
+    AsyncResult(
+      OpenID.verifiedId.extend( _.value match {
+        case Redeemed(info) =>
+          Redirect(routes.Application.index()).withSession("id" -> info.id, "email" -> info.attributes("email"))
+//          Ok(info.id + "\n" + info.attributes)
+        case Thrown(t) => {
+          Redirect(routes.Application.login(t.toString))
+        }
+      })
+    )
+  }
+  
+  def logout = Action {
+    Redirect(routes.Application.login("Logout successful")).withNewSession
+  }
+
+  def userAllowed(email: String) = Config.allowedUsers.contains(email)
+  def isAuth(implicit request: Request[AnyContent]) = request.session.get("email").map(mail => userAllowed(mail)).getOrElse(false)
+  private def username(request: RequestHeader) = request.session.get("email")
+  private def onUnauthorized(request: RequestHeader) = Results.Redirect(routes.Application.login("Login required"))
+  def AuthAction(f: => Request[AnyContent] => Result) = Security.Authenticated(username, onUnauthorized) { user =>
+    Action { request => 
+      if (userAllowed(user)) f(request)
+      else Forbidden(views.html.error("User "+ user +" not allowed. Ask the admin to add your gmail address."))
+    }
+  }
+  
+  /**
+   * The pages
    */
 
-  def index(page: Int) = Action {
+  def index(page: Int) = Action { implicit request =>
     if (page < 1) NotFound(views.html.error("Page index out of bounds: "+ page))
     else {
       val commits = Commit.commits(page = page)
       val refreshing = BuildTasksDispatcher.busyList
-      Ok(views.html.index(commits, refreshing, UpdateRepoActor.appState, page))
+      Ok(views.html.index(commits, refreshing, UpdateRepoActor.appState, page, isAuth))
     }
   }
 
-  def revPage(sha: String) = Action {
+  def revPage(sha: String) = Action { implicit request =>
     val isRefreshing = BuildTasksDispatcher.busyList(sha)
     Commit.commit(sha) match {
-      case Some(c) => Ok(views.html.revision(c, isRefreshing, Config.jenkinsJob))
+      case Some(c) => Ok(views.html.revision(c, isRefreshing, Config.jenkinsJob, isAuth))
       case None => NotFound(views.html.error("Unknown commit hash: "+ sha))
     }
   }
@@ -76,43 +127,33 @@ object Application extends Controller {
     }
   }
   
-  def startBuild(sha: String) = {
+  def startBuild(sha: String) = AuthAction { _ =>
     val ok = submitBuildTask(sha, doStartBuild(sha))
-    Action {
-      if (ok) Redirect(routes.Application.revPage(sha))
-      else Conflict(views.html.error("Could not start build, action in progress for "+ sha))
-    }
+    if (ok) Redirect(routes.Application.revPage(sha))
+    else Conflict(views.html.error("Could not start build, action in progress for "+ sha))
   }
 
-  def cancelBuild(sha: String) = {
+  def cancelBuild(sha: String) = AuthAction { _ =>
     val ok = submitBuildTask(sha, doCancel(sha))
-    Action {
-      if (ok) Redirect(routes.Application.revPage(sha))
-      else Conflict(views.html.error("Could not cancel build, action in progress for "+ sha))
-    }
+    if (ok) Redirect(routes.Application.revPage(sha))
+    else Conflict(views.html.error("Could not cancel build, action in progress for "+ sha))
   }
 
-  def refresh(sha: String) = {
+  def refresh(sha: String) = AuthAction { _ =>
     val ok = submitBuildTask(sha, doRefresh(sha))
-    Action {
-      if (ok) Redirect(routes.Application.revPage(sha))
-      else Conflict("Could not refresh build, action in progress for "+ sha)
-    }
+    if (ok) Redirect(routes.Application.revPage(sha))
+    else Conflict("Could not refresh build, action in progress for "+ sha)
   }
 
   
-  def updateRepo() = {
-    Action {
-      if (submitUpdateTask()) Redirect(routes.Application.index())
-      else Conflict(views.html.error("Repository update already in progress."))
-    }
+  def updateRepo() = AuthAction { _ =>
+    if (submitUpdateTask()) Redirect(routes.Application.index())
+    else Conflict(views.html.error("Repository update already in progress."))
   }
 
-  def refreshAll() = {
+  def refreshAll() = AuthAction { _ =>
     doRefreshAll()
-    Action {
-      Redirect(routes.Application.index())
-    }
+    Redirect(routes.Application.index())
   }
 
 
@@ -258,12 +299,10 @@ object Application extends Controller {
    */
 
   
-  def initRepo() = {
+  def initRepo() = AuthAction { _ =>
     val shas = LocalGitRepo.newCommitsSince(Config.oldestImportedCommit).filter(r => (Commit.commit(r).isEmpty))
     val commits = shas.map(sha => GithubTools.revisionInfo(sha))
     Commit.addCommits(commits)
-    Action {
-      Redirect(routes.Application.index())
-    }
+    Redirect(routes.Application.index())
   }
 }

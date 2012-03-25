@@ -1,4 +1,4 @@
-@(commits: List[Commit], refreshing: Set[String], state: UpdateState, p: Int)
+@(commits: List[Commit], refreshing: Set[String], state: UpdateState, p: Int, isAuth: Boolean)
 
 @import helper._
 
@@ -21,17 +21,19 @@
   }
   <a href=?p=@{p+1}>older</a>
 
-  @if(state == Idle) {
-    @form(routes.Application.updateRepo()) {
-      <input type="submit" value="update repo"/>
+  @if(isAuth) {
+    @if(state == Idle) {
+      @form(routes.Application.updateRepo()) {
+        <input type="submit" value="update repo"/>
+      }
+    } else {
+      <p>
+        updating commits from repo...
+      </p>
     }
-  } else {
-    <p>
-      updating commits from repo...
-    </p>
-  }
 
-  @form(routes.Application.refreshAll()) {
-    <input type="submit" value="refresh all build states"/>
+    @form(routes.Application.refreshAll()) {
+      <input type="submit" value="refresh all build states"/>
+    }
   }
 }
