@@ -110,6 +110,17 @@ object Application extends Controller {
     }
   }
 
+  def downloadRedirect(sha: String, file: String) = Action {
+    Commit.commit(sha) match {
+      case Some(c) =>
+        val fileUrl = Config.jenkinsUrl +"job/"+ Config.jenkinsJob +"/"+ c.jenkinsBuild.get +"/artifact/"+ file
+        Redirect(fileUrl)
+
+      case None =>
+        NotFound(views.html.error("Unknown commit hash: "+ sha))
+    }
+  }
+
 /*
   def download(sha: String, file: String, read: Boolean) = Action {
     import play.api.libs.iteratee.Enumerator
