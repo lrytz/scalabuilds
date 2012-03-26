@@ -6,7 +6,7 @@ import models.Setting
 object Config {
   val commitsPerPage = 50
   
-  val enablePollings = false
+  val enablePollings = true
   
   val updatePollFrequency = 1 minute
   val refreshRunningBuildsFrequency = 5 minutes
@@ -20,9 +20,9 @@ object Config {
 
 //  val localGitRepoDir = "git-repo"
 
-  val revListerUrl = "http://localhost:9001/"
+  val revListerUrl = "http://scala-webapps.epfl.ch/rev-lister/"
 
-//  val artifactsDir = "artifacts"
+//  val artifactsDir = "/Users/luc/Downloads/backup/artifacts"
 
   lazy val jenkinsUsername = Setting.setting("jenkinsUsername")
   lazy val jenkinsPassword = Setting.setting("jenkinsPassword")

@@ -18,29 +18,29 @@
     @defining(commit.state) { cs => @cs match {
       case Missing => {
         <p>@commit.state.describe(refreshing)</p>
-        @aform(routes.Application.startBuild(commit.sha)) {
+        <p>@aform(routes.Application.startBuild(commit.sha)) {
           <input type="submit" value="start jenkins build"/>
-        }
+        }</p>
       }
   
       case Searching => {
         <p>@commit.state.describe(refreshing) (UUID: @commit.jenkinsBuildUUID.get)</p>
-        @aform(routes.Application.refresh(commit.sha)) {
+        <p>@aform(routes.Application.refresh(commit.sha)) {
           <input type="submit" value="refresh state"/>
-        }
-        @aform(routes.Application.cancelBuild(commit.sha)) {
+        }</p>
+        <p>@aform(routes.Application.cancelBuild(commit.sha)) {
           <input type="submit" value="cancel search"/>
-        }
+        }</p>
       }
   
       case Running | Downloading => {
         <p>@commit.state.describe(refreshing): <a href="https://scala-webapps.epfl.ch/jenkins/job/@jenkinsJob/@commit.jenkinsBuild.get" target="_blank">#@commit.jenkinsBuild.get</a></p>
-        @aform(routes.Application.refresh(commit.sha)) {
+        <p>@aform(routes.Application.refresh(commit.sha)) {
           <input type="submit" value="refresh state"/>
-        }
-        @aform(routes.Application.cancelBuild(commit.sha)) {
+        }</p>
+        <p>@aform(routes.Application.cancelBuild(commit.sha)) {
           <input type="submit" value="cancel following this build"/>
-        }
+        }</p>
       }
   
       case Done => {
@@ -58,12 +58,12 @@
           <li><a href="https://scala-webapps.epfl.ch/jenkins/job/@jenkinsJob/@commit.jenkinsBuild.get/artifact/@artifact.filePath" target="_blank">@artifact.filePath</a></li>
         }
         </ul>
-        @aform(routes.Application.startBuild(commit.sha)) {
+        <p>@aform(routes.Application.startBuild(commit.sha)) {
           <input type="submit" value="start new jenkins build"/>
-        }
-        @aform(routes.Application.cancelBuild(commit.sha)) {
+        }</p>
+        <p>@aform(routes.Application.cancelBuild(commit.sha)) {
           <input type="submit" value="unlink from jenkins build"/>
-        }
+        }</p>
       }
     }}}
   }

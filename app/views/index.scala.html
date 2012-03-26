@@ -5,6 +5,26 @@
 @main("Scala Commits") {
   <h1>Recent Commits</h1>
 
+  <p>@if(isAuth) {
+    <a href="logout">logout</a>
+  } else {
+    <a href="login">login</a>
+  }</p>
+
+  @if(isAuth) {
+    <p>@if(state == Idle) {
+      @form(routes.Application.updateRepo()) {
+        <input type="submit" value="update repo"/>
+      }
+    } else {
+        updating commits from repo...
+    }</p>
+
+    <p>@form(routes.Application.refreshAll()) {
+      <input type="submit" value="refresh all build states"/>
+    }</p>
+  }
+
   <ul>
     @commits.map { commit =>
       <li>
@@ -26,20 +46,4 @@
     <a href=?p=@{p-1}>newer</a> -
   }
   <a href=?p=@{p+1}>older</a>
-
-  @if(isAuth) {
-    @if(state == Idle) {
-      @form(routes.Application.updateRepo()) {
-        <input type="submit" value="update repo"/>
-      }
-    } else {
-      <p>
-        updating commits from repo...
-      </p>
-    }
-
-    @form(routes.Application.refreshAll()) {
-      <input type="submit" value="refresh all build states"/>
-    }
-  }
 }

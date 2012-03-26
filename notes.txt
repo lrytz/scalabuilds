@@ -1,0 +1,61 @@
+*****************
+required settings
+*****************
+
+
+INSERT INTO setting VALUES ('jenkinsUsername', 'jenkinsbuilder');
+INSERT INTO setting VALUES ('jenkinsPassword', 'xxxxxxxxxxxxxx');
+
+
+
+ALLOWED USERS
+
+INSERT INTO login (email) VALUES ('odersky@gmail.com');
+.....
+
+
+
+
+**********
+postgresql
+**********
+
+INSTALL
+
+- brew install postgresql
+
+- edit /usr/local/var/postgres/postgresql.conf
+  ==> max_connections = 50
+
+- according to http://willbryant.net/software/mac_os_x/postgres_initdb_fatal_shared_memory_error_on_leopard
+
+  sudo sysctl -w kern.sysv.shmall=65536
+  sudo sysctl -w kern.sysv.shmmax=16777216
+
+- make these settings stick: edit (create) "sudo emacs /etc/sysctl.conf"
+
+  kern.sysv.shmall=65536
+  kern.sysv.shmmax=16777216
+
+
+START & STOP
+
+ start:    pg_ctl -D /usr/local/var/postgres -l /usr/local/var/postgres/server.log start
+ stop:     pg_ctl -D /usr/local/var/postgres stop -s -m fast
+
+
+CREATE DUMP
+
+/usr/local/bin/pg_dump -h localhost -U scalabuilds --insert scalabuilds > dump.sql
+
+
+
+
+******
+heroku
+******
+
+http://devcenter.heroku.com/articles/import-data-heroku-postgres
+http://www.postgresql.org/docs/8.3/static/datatype-numeric.html
+
+
