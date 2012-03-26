@@ -57,7 +57,7 @@
         <p><a href="https://scala-webapps.epfl.ch/jenkins/job/@jenkinsJob/@commit.jenkinsBuild.get/consoleFull" target="_blank"/>build log</a></p>
         <ul>
         @models.Artifact.artifactsFor(commit.sha).map { artifact =>
-          <li><a href="https://scala-webapps.epfl.ch/jenkins/job/@jenkinsJob/@commit.jenkinsBuild.get/artifact/@artifact.filePath" target="_blank">@artifact.filePath</a></li>
+          <li><a href="@commit.sha/artifacts/@artifact.filePath">@artifact.filePath</a></li>
         }
         </ul>
         <p>Actions - <strong>careful</strong>, cannot be undone!</p>

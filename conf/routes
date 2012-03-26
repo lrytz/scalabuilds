@@ -16,6 +16,7 @@ GET     /logout                      controllers.Application.logout
 # Pages
 GET     /                            controllers.Application.index(p: Int ?= 1)
 GET     /rev/:sha                    controllers.Application.revPage(sha: String)
+GET     /rev/:sha/artifacts/*name    controllers.Application.downloadRedirect(sha: String, name: String)
 # GET     /rev/:sha/artifacts/*name    controllers.Application.download(sha: String, name: String, view: Boolean = false)
 # GET     /rev/:sha/viewArtifact/*name controllers.Application.download(sha: String, name: String, view: Boolean = true)
 
@@ -24,7 +25,7 @@ GET     /rev/:sha                    controllers.Application.revPage(sha: String
 # Actions
 POST    /update                      controllers.Application.updateRepo()
 POST    /refreshAll                  controllers.Application.refreshAll()
-GET     /init                        controllers.Application.initRepo()
+# GET     /init                        controllers.Application.initRepo()
 
 POST    /rev/:sha/startBuild         controllers.Application.startBuild(sha: String)
 POST    /rev/:sha/cancelBuild        controllers.Application.cancelBuild(sha: String)
