@@ -12,16 +12,19 @@ object GitRepo {
 
   def cloneGitRepo() {
     repoPath.deleteRecursively(true)
-    val repoUrl = "git@github.com:scala/scala.git"
+    val repoUrl = "git://github.com/scala/scala.git"
     Process("git clone "+ repoUrl +" "+ gitRepoDir, someRepoParentFile).!!
   }
-  
+
   def pullLatest() {
     Process("git pull origin master", someRepoFile).!!
   }
   
   def newCommitsSince(sha: String): Either[Throwable, List[String]] = {
     try {
+      if (!repoPath.exists) {
+        cloneGitRepo()
+      }
       pullLatest()
       Right(Process("git rev-list HEAD ^"+ sha, someRepoFile).lines.toList)
     } catch {
