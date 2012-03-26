@@ -203,6 +203,8 @@ object Application extends Controller {
             Commit.updateJenkinsBuildUUID(sha, None)
             Commit.updateBuildSuccess(sha, None)
             Commit.updateState(sha, Missing)
+            for (art <- Artifact.artifactsFor(sha))
+              Artifact.deleteArtifact(art.id)
         }
         
       case None =>
