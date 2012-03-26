@@ -3,7 +3,7 @@
 # --- !Ups
 
 CREATE TABLE artifact (
-    id int NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    id serial NOT NULL PRIMARY KEY,
     sha varchar(40) NOT NULL,
     filePath varchar(512) NOT NULL
 );
