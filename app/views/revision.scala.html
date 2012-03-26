@@ -28,6 +28,7 @@
         <p>@aform(routes.Application.refresh(commit.sha)) {
           <input type="submit" value="refresh state"/>
         }</p>
+        <p>Actions - <strong>careful</strong>, cannot be undone!</p>
         <p>@aform(routes.Application.cancelBuild(commit.sha)) {
           <input type="submit" value="cancel search"/>
         }</p>
@@ -38,6 +39,7 @@
         <p>@aform(routes.Application.refresh(commit.sha)) {
           <input type="submit" value="refresh state"/>
         }</p>
+        <p>Actions - <strong>careful</strong>, cannot be undone!</p>
         <p>@aform(routes.Application.cancelBuild(commit.sha)) {
           <input type="submit" value="cancel following this build"/>
         }</p>
@@ -58,11 +60,12 @@
           <li><a href="https://scala-webapps.epfl.ch/jenkins/job/@jenkinsJob/@commit.jenkinsBuild.get/artifact/@artifact.filePath" target="_blank">@artifact.filePath</a></li>
         }
         </ul>
-        <p>@aform(routes.Application.startBuild(commit.sha)) {
-          <input type="submit" value="start new jenkins build"/>
-        }</p>
+        <p>Actions - <strong>careful</strong>, cannot be undone!</p>
         <p>@aform(routes.Application.cancelBuild(commit.sha)) {
           <input type="submit" value="unlink from jenkins build"/>
+        }</p>
+        <p>@aform(routes.Application.startBuild(commit.sha)) {
+          <input type="submit" value="unlink and start new jenkins build"/>
         }</p>
       }
     }}}
