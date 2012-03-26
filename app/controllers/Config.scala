@@ -21,7 +21,7 @@ object Config {
     
   val revListerUrl = "http://localhost:9001/"
 
-  val artifactsDir = "artifacts"
+//  val artifactsDir = "artifacts"
 
   val jenkinsCredentialsFile = "jenkinsCredentials.json"
   private def read(field: String) = {
