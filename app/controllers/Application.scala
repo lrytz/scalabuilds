@@ -78,7 +78,7 @@ object Application extends Controller {
     Redirect(routes.Application.login("Logout successful")).withNewSession
   }
 
-  def userAllowed(email: String) = Config.allowedUsers.contains(email)
+  def userAllowed(email: String) = models.User.userExists(email)
   def isAuth(implicit request: Request[AnyContent]) = request.session.get("email").map(mail => userAllowed(mail)).getOrElse(false)
   private def username(request: RequestHeader) = request.session.get("email")
   private def onUnauthorized(request: RequestHeader) = Results.Redirect(routes.Application.login("Login required"))

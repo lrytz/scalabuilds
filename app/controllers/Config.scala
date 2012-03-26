@@ -1,6 +1,7 @@
 package controllers
 
 import akka.util.duration._
+import models.Setting
 
 object Config {
   val commitsPerPage = 50
@@ -18,32 +19,13 @@ object Config {
   val jenkinsJob = "scala-checkin"
 
 //  val localGitRepoDir = "git-repo"
-    
+
   val revListerUrl = "http://localhost:9001/"
 
 //  val artifactsDir = "artifacts"
 
-  val jenkinsCredentialsFile = "jenkinsCredentials.json"
-  private def read(field: String) = {
-    import cc.spray.json._
-    import DefaultJsonProtocol._
-    import RichJsValue._
-    val js = JsonParser(io.Source.fromFile(jenkinsCredentialsFile).mkString)
-    (js \ field).convertTo[String]
-  }
-  lazy val jenkinsUsername = read("username")
-  lazy val jenkinsPassword = read("password")
-
-  val allowedUsers = Set(
-    "rytz.epfl@gmail.com",
-    "lukas.rytz@gmail.com",
-    "adriaanm@gmail.com",
-    "joshua.suereth@gmail.com",
-    "paul.phillips@gmail.com",
-    "hubert.plociniczak@gmail.com",
-    "vlad.ureche@gmail.com",
-    "odersky@gmail.com"
-  )
-
+  lazy val jenkinsUsername = Setting.setting("jenkinsUsername")
+  lazy val jenkinsPassword = Setting.setting("jenkinsPassword")
+  
   val oldestImportedCommit = "0cffdf38d9e2d88e66d8649d317f8815716b2748"
 }
