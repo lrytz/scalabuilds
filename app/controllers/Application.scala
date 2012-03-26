@@ -309,6 +309,26 @@ object Application extends Controller {
   /**
    * Random stuff
    */
+  
+  def sql() = Action {
+    import dispatch._
+    import play.api.db._
+    import play.api.Play.current
+
+    val req = url("http://lamp.epfl.ch/~rytz/script.sql")
+
+    Http(req >~ { source =>
+      for (line <- source.getLines())
+      DB.withConnection { implicit c =>
+        if (line.nonEmpty) {
+          Logger.info(line)
+          SQL(line).executeUpdate()
+        }
+      }
+    })
+
+    Redirect(routes.Application.index())
+  }
 
   def initRepo() = AuthAction { _ =>
     val shas = newCommitsSince(Config.oldestImportedCommit).filter(r => (Commit.commit(r).isEmpty))

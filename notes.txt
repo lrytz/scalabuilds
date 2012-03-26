@@ -5,6 +5,7 @@ required settings
 
 INSERT INTO setting VALUES ('jenkinsUsername', 'jenkinsbuilder');
 INSERT INTO setting VALUES ('jenkinsPassword', 'xxxxxxxxxxxxxx');
+INSERT INTO setting VALUES ('enablePollings', 'true');
 
 
 
@@ -54,6 +55,22 @@ CREATE DUMP
 ******
 heroku
 ******
+
+
+- create app:
+    heroku create --stack cedar
+  (adds a git remote)
+
+- publish
+    git push heroku heroku:master
+
+- view logs
+    heroku logs
+
+- sql console
+    https://github.com/ddollar/heroku-sql-console
+
+
 
 http://devcenter.heroku.com/articles/import-data-heroku-postgres
 http://www.postgresql.org/docs/8.3/static/datatype-numeric.html
