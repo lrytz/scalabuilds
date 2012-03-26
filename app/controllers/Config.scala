@@ -22,7 +22,7 @@ object Config {
 
   val revListerUrl = "http://localhost:9001/"
 
-//  val artifactsDir = "artifacts"
+//  val artifactsDir = "/Users/luc/Downloads/backup/artifacts"
 
   lazy val jenkinsUsername = Setting.setting("jenkinsUsername")
   lazy val jenkinsPassword = Setting.setting("jenkinsPassword")
