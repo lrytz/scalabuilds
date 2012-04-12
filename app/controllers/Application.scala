@@ -176,17 +176,14 @@ object Application extends Controller {
     Commit.commit(sha) match {
       case Some(commit) =>
         commit.state match {
-          case Missing =>
-            Logger.info("Starting new build for "+ commit)
+          case Missing | Done =>
+            if (commit.state == Missing) {
+              Logger.info("Starting new build for "+ commit)
+            } else {
+              doCancel(sha)
+              Logger.info("Re-building "+ commit)
+            }
             val uuid = UUID.randomUUID.toString
-            Commit.updateState(sha, Searching)
-            Commit.updateJenkinsBuildUUID(sha, Some(uuid))
-            JenkinsTools.startBuild(sha, uuid)
-
-          case Done =>
-            Logger.info("Re-building "+ commit)
-            val uuid = UUID.randomUUID.toString
-            Commit.updateJenkinsBuild(sha, None)
             Commit.updateState(sha, Searching)
             Commit.updateJenkinsBuildUUID(sha, Some(uuid))
             JenkinsTools.startBuild(sha, uuid)
