@@ -298,7 +298,9 @@ object Application extends Controller {
       Nil
     } else {
       val latest = commits.head
-      val newShas = newCommitsSince(latest.sha)
+      // reverse the list of new commit hashes. this way the jenkins jobs
+      // for older commits are triggered first.
+      val newShas = newCommitsSince(latest.sha).reverse
       if (newShas.isEmpty) {
         Logger.info("No new commits.")
       } else {
