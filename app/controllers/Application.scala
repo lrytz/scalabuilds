@@ -25,7 +25,7 @@ import jenkins._
 import models._
 
 import UpdateRepoActor.submitUpdateTask
-import BuildTasksDispatcher.submitBuildTask
+import BuildTasksDispatcher.{submitBuildTask, submitRequiredBuildTask}
 
 object Application extends Controller {
 
@@ -310,8 +310,8 @@ object Application extends Controller {
         Logger.info("Fetched new commits: "+ newCommits)
         Commit.addCommits(newCommits)
         for (commit <- newCommits) {
-          val ok = submitBuildTask(commit.sha, doStartBuild(commit.sha))
-          if (!ok) Logger.error("failed to start build for new commit "+ commit.sha)
+          val ok = submitRequiredBuildTask(commit.sha, doStartBuild(commit.sha))
+          if (!ok) Logger.info("start build task delayed "+ commit.sha)
         }
       }
     }

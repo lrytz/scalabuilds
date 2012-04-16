@@ -93,7 +93,7 @@ class RefreshRunningBuildsActor extends Actor {
 }
 
 
-
+case class RequiredBuildTask(sha: String, action: () => Unit)
 case class BuildTask(sha: String, action: () => Unit)
 case class BuildTaskDone(sha: String)
 
@@ -102,19 +102,51 @@ class BuildTasksDispatcher extends Actor {
    * Contains the commits for which a task is running
    */
   var busyList: imm.Set[String] = imm.Set()
+  var delayedRequiredTasks: imm.Map[String, List[() => Unit]] = Map().withDefaultValue(Nil)
+  def delay(t: RequiredBuildTask) {
+    delayedRequiredTasks = delayedRequiredTasks.updated(t.sha, t.action :: delayedRequiredTasks(t.sha))
+  }
+  def popDelayed(sha: String): Option[() => Unit] = {
+    val tasks = delayedRequiredTasks(sha)
+    if (tasks.isEmpty) {
+      None
+    } else {
+      delayedRequiredTasks = delayedRequiredTasks.updated(sha, tasks.tail)
+      Some(tasks.head)
+    }
+  }
+
+  private def run(sha: String, action: () => Unit) {
+    RunAsync(action(), self ! BuildTaskDone(sha))
+  }
 
   def receive = {
+    case rt @ RequiredBuildTask(sha, action) =>
+      if (busyList(sha)) {
+        delay(rt)
+        sender ! false
+      } else {
+        busyList += sha
+        run(sha, action)
+        sender ! true
+      }
+
     case BuildTask(sha, action) =>
       if (busyList(sha)) {
         sender ! false
       } else {
         busyList += sha
-        RunAsync(action(), self ! BuildTaskDone(sha))
+        run(sha, action)
         sender ! true
       }
       
     case BuildTaskDone(sha) =>
-      busyList -= sha
+      popDelayed(sha) match {
+        case Some(action) =>
+          run(sha, action)
+        case None =>
+          busyList -= sha
+      }
       
     case "busyList" =>
       sender ! busyList
@@ -133,5 +165,8 @@ object BuildTasksDispatcher {
   def submitBuildTask(sha: String, action: => Unit) = {
     Await.result((dispatcher ? BuildTask(sha, () => action)).mapTo[Boolean], dur)
   }
-}
 
+  def submitRequiredBuildTask(sha: String, action: => Unit) = {
+    Await.result((dispatcher ? RequiredBuildTask(sha, () => action)).mapTo[Boolean], dur)
+  }
+}
