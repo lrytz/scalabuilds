@@ -35,8 +35,9 @@ object JenkinsTools {
       }
     })
     val builds = (res \ "builds").arrayValues.map(_.convertTo[JenkinsBuild])
-    Logger.info("existing builds: "+ builds)
-    builds.map(_.number)
+    val r = builds.map(_.number)
+    Logger.info("existing builds: "+ r)
+    r
   }
   
   def buildStream(buildIds: List[Int] = existingBuilds()): Stream[JenkinsBuildInfo] = buildIds match {
@@ -110,7 +111,7 @@ object JenkinsTools {
         result
       }
     })
-    Logger.info("started build, http result "+ res)
+    Logger.info("started jenkins build for "+ sha)
     true
   }
 

@@ -224,7 +224,8 @@ object Application extends Controller {
   private[controllers] def doRefreshAll() {
     for (commit <- Commit.runningCommits) {
       Logger("refreshing build "+ commit)
-      submitBuildTask(commit.sha, doRefresh(commit.sha))
+      val ok = submitBuildTask(commit.sha, doRefresh(commit.sha))
+      if (!ok) Logger.info("could not refresh build "+ commit.sha)
     }
   }
   
@@ -308,8 +309,10 @@ object Application extends Controller {
         //val newCommits = GithubTools.revisionStream().takeWhile(_.sha != latest.sha).toList
         Logger.info("Fetched new commits: "+ newCommits)
         Commit.addCommits(newCommits)
-        for (commit <- newCommits)
-          submitBuildTask(commit.sha, doStartBuild(commit.sha))
+        for (commit <- newCommits) {
+          val ok = submitBuildTask(commit.sha, doStartBuild(commit.sha))
+          if (!ok) Logger.error("failed to start build for new commit "+ commit.sha)
+        }
       }
     }
   }
