@@ -1,7 +1,7 @@
 package controllers
 
 import scalax.file._
-import sys.process._
+import process._
 
 object GitRepo {
   val gitRepoDir = "git-repo"
