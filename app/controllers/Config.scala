@@ -6,7 +6,7 @@ import models.Setting
 object Config {
   val commitsPerPage = 50
   
-  val enablePollings = Setting.setting("enablePollings") == "true"
+  lazy val enablePollings = Setting.setting("enablePollings") == "true"
   
   val updatePollFrequency = 1 minute
   val refreshRunningBuildsFrequency = 5 minutes
