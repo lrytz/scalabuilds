@@ -28,6 +28,7 @@ POST    /refreshAll                  controllers.Application.refreshAll()
 # GET     /init                        controllers.Application.initRepo()
 
 POST    /rev/:sha/startBuild         controllers.Application.startBuild(sha: String)
+GET     /rev/:sha/startBuild         controllers.Application.startBuild(sha: String)
 POST    /rev/:sha/cancelBuild        controllers.Application.cancelBuild(sha: String)
 POST    /rev/:sha/refresh            controllers.Application.refresh(sha: String)
 

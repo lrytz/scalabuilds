@@ -29,7 +29,7 @@ import BuildTasksDispatcher.{submitBuildTask, submitRequiredBuildTask}
 
 object Application extends Controller {
 
-  lazy val silentHttp = new dispatch.Http with dispatch.NoLogging
+  def silentHttp = new dispatch.Http with dispatch.NoLogging
 
   /**
    * The actors
