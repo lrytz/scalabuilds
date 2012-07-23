@@ -101,12 +101,19 @@ class BuildTasksDispatcher extends Actor {
   /**
    * Contains the commits for which a task is running
    */
-  var busyList: imm.Set[String] = imm.Set()
-  var delayedRequiredTasks: imm.Map[String, List[() => Unit]] = Map().withDefaultValue(Nil)
-  def delay(t: RequiredBuildTask) {
+  private var busyList: imm.Set[String] = imm.Set()
+
+  /**
+   * For every commit a list of tasks that need to be executed. A task for a commit is delayed
+   * when another task for that commit is already running (i.e. busyList contains the commit).
+   */
+  private var delayedRequiredTasks: imm.Map[String, List[() => Unit]] = Map().withDefaultValue(Nil)
+
+  def delay(t: RequiredBuildTask) = synchronized {
     delayedRequiredTasks = delayedRequiredTasks.updated(t.sha, t.action :: delayedRequiredTasks(t.sha))
   }
-  def popDelayed(sha: String): Option[() => Unit] = {
+
+  def popDelayed(sha: String): Option[() => Unit] = synchronized {
     val tasks = delayedRequiredTasks(sha)
     if (tasks.isEmpty) {
       None
@@ -121,7 +128,7 @@ class BuildTasksDispatcher extends Actor {
   }
 
   def receive = {
-    case rt @ RequiredBuildTask(sha, action) =>
+    case rt @ RequiredBuildTask(sha, action) => synchronized {
       if (busyList(sha)) {
         delay(rt)
         sender ! false
@@ -130,8 +137,9 @@ class BuildTasksDispatcher extends Actor {
         run(sha, action)
         sender ! true
       }
+    }
 
-    case BuildTask(sha, action) =>
+    case BuildTask(sha, action) => synchronized {
       if (busyList(sha)) {
         sender ! false
       } else {
@@ -139,14 +147,16 @@ class BuildTasksDispatcher extends Actor {
         run(sha, action)
         sender ! true
       }
+    }
       
-    case BuildTaskDone(sha) =>
+    case BuildTaskDone(sha) => synchronized {
       popDelayed(sha) match {
         case Some(action) =>
           run(sha, action)
         case None =>
           busyList -= sha
       }
+    }
       
     case "busyList" =>
       sender ! busyList

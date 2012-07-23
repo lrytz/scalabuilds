@@ -6,6 +6,7 @@ import org.joda.time.format.ISODateTimeFormat
 
 import cc.spray.json._
 import dispatch._
+import Application.silentHttp
 
 import models._
 
@@ -40,7 +41,7 @@ object GithubTools {
   
   def revisionInfo(sha: String): Commit = {
     val req = url("https://api.github.com/repos/"+githubUser+"/"+githubRepo+"/commits/"+ sha)
-    val commit = Http(req >:+ { (headers, req) =>
+    val commit = silentHttp(req >:+ { (headers, req) =>
       // todo: check stuff with header, fail if problem
 
       // handle request
@@ -96,7 +97,7 @@ we get fb44bb28b8b3e7861b96c874dc79072f89fec10b, the two commits in between are 
 
     val args = "per_page="+ num +"&sha="+ githubBranch
     val req = url(urlStr + args)
-    val res = Http(req >:+ { (headers, req) =>
+    val res = silentHttp(req >:+ { (headers, req) =>
       // todo: check stuff with header, fail if problem
 
       // handle request

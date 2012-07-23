@@ -29,6 +29,8 @@ import BuildTasksDispatcher.{submitBuildTask, submitRequiredBuildTask}
 
 object Application extends Controller {
 
+  lazy val silentHttp = new dispatch.Http with dispatch.NoLogging
+
   /**
    * The actors
    */
@@ -284,7 +286,7 @@ object Application extends Controller {
   private def newCommitsSince(sha: String) = {
     import dispatch._
     val req = url(Config.revListerUrl + sha)
-    Http(req >- { res =>
+    silentHttp(req >- { res =>
       res match {
         case "" => Nil
         case s  => s.split(",").toList
@@ -332,7 +334,7 @@ object Application extends Controller {
 
     val req = url("http://lamp.epfl.ch/~rytz/script.sql")
 
-    Http(req >~ { source =>
+    silentHttp(req >~ { source =>
       for (line <- source.getLines())
       DB.withConnection { implicit c =>
         if (line.nonEmpty) {
