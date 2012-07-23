@@ -2,7 +2,7 @@
 TODOS
 *****
 
- - new library for json: https://github.com/jrudolph/json-lenses/
+ - ??? new library for json: https://github.com/jrudolph/json-lenses/
 
 
 *****************
@@ -83,3 +83,19 @@ http://devcenter.heroku.com/articles/import-data-heroku-postgres
 http://www.postgresql.org/docs/8.3/static/datatype-numeric.html
 
 
+
+
+**********************
+http / rest api tricks
+**********************
+
+issue post requests programmatically: open javascript console in chrome on the page,
+paste the following (deltes builds in jenkins)
+
+    http = new XMLHttpRequest();
+    http.open("POST", "https://scala-webapps.epfl.ch/jenkins/job/scala-checkin/6444/doDelete", false);
+    http.send("");
+    
+    http = new XMLHttpRequest();
+    http.open("POST", "https://scala-webapps.epfl.ch/jenkins/job/scala-checkin/6443/doDelete", false);
+    http.send("");
