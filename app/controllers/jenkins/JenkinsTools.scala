@@ -5,6 +5,7 @@ import cc.spray.json._
 import RichJsValue._
 //import play.api.libs.json._
 import dispatch._
+import Application.silentHttp
 
 import play.api.Logger
 
@@ -26,7 +27,7 @@ object JenkinsTools {
 
   def existingBuilds(): List[Int] = {
     val req = url(jenkinsUrl + "job/"+jenkinsJob+"/api/json")
-    val res = Http(req >:+ { (headers, req) =>
+    val res = silentHttp(req >:+ { (headers, req) =>
       // todo: check stuff with header, fail if problem
 
       // handle request
@@ -53,7 +54,7 @@ object JenkinsTools {
   
   def buildDetails(buildId: Int): Option[JenkinsBuildInfo] = {
     val req = url(jenkinsUrl + "job/"+ jenkinsJob +"/"+ buildId +"/api/json")
-    val res = Http(req >:+ { (headers, req) =>
+    val res = silentHttp(req >:+ { (headers, req) =>
       // todo: check stuff with header, fail if problem
 
       // handle request
@@ -103,7 +104,7 @@ object JenkinsTools {
 
   def startBuild(sha: String, uuid: String, username: String = jenkinsUsername, password: String = jenkinsPassword): Boolean = {
     val req = url(jenkinsUrl + "job/"+ jenkinsJob +"/buildWithParameters?revision="+sha+"&uuid="+uuid).POST.as_!(username, password)
-    val res = Http(req >:+ { (headers, req) =>
+    val res = silentHttp(req >:+ { (headers, req) =>
       // todo: check stuff with header, fail if problem
 
       // handle request

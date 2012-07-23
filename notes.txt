@@ -1,3 +1,10 @@
+*****
+TODOS
+*****
+
+ - new library for json: https://github.com/jrudolph/json-lenses/
+
+
 *****************
 required settings
 *****************
