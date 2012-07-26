@@ -141,7 +141,7 @@ object Application extends Controller {
 */
 
   def startBuild(sha: String) = AuthAction { _ =>
-    val ok = submitBuildTask(sha, doStartBuild(sha))
+    val ok = submitBuildTask(sha, doStartBuild(sha, Config.manualBuildRecipients))
     if (ok) Redirect(routes.Application.revPage(sha))
     else Conflict(views.html.error("Could not start build, action in progress for "+ sha))
   }
@@ -174,7 +174,7 @@ object Application extends Controller {
    * The application logic
    */
   
-  private def doStartBuild(sha: String) {
+  private def doStartBuild(sha: String, recipients: String) {
     Commit.commit(sha) match {
       case Some(commit) =>
         commit.state match {
@@ -188,7 +188,7 @@ object Application extends Controller {
             val uuid = UUID.randomUUID.toString
             Commit.updateState(sha, Searching)
             Commit.updateJenkinsBuildUUID(sha, Some(uuid))
-            JenkinsTools.startBuild(sha, uuid)
+            JenkinsTools.startBuild(sha, uuid, recipients)
             
           case Searching | Running | Downloading =>
             Logger.error("Cannot start running build: "+ commit)
@@ -312,7 +312,7 @@ object Application extends Controller {
         Logger.info("Fetched new commits: "+ newCommits)
         Commit.addCommits(newCommits)
         for (commit <- newCommits) {
-          val ok = submitRequiredBuildTask(commit.sha, doStartBuild(commit.sha))
+          val ok = submitRequiredBuildTask(commit.sha, doStartBuild(commit.sha, Config.newCommitBuildRecipients))
           if (!ok) Logger.info("start build task delayed "+ commit.sha)
         }
       }
@@ -327,7 +327,7 @@ object Application extends Controller {
    * Random stuff
    */
   
-  def sql() = Action {
+  def sql() = AuthAction { _ =>
     import dispatch._
     import play.api.db._
     import play.api.Play.current

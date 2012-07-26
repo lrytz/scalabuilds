@@ -27,5 +27,8 @@ object Config {
   lazy val jenkinsUsername = Setting.setting("jenkinsUsername")
   lazy val jenkinsPassword = Setting.setting("jenkinsPassword")
   
+  val newCommitBuildRecipients = "scala-reports@epfl.ch"
+  val manualBuildRecipients    = "lukas.rytz@epfl.ch"
+  
   val oldestImportedCommit = "0cffdf38d9e2d88e66d8649d317f8815716b2748"
 }
