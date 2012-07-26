@@ -102,8 +102,10 @@ object JenkinsTools {
       yield JenkinsBuildInfo(sha, buildId, buildUUID, finished, artifacts, buildSuccess)
   }
 
-  def startBuild(sha: String, uuid: String, username: String = jenkinsUsername, password: String = jenkinsPassword): Boolean = {
-    val req = url(jenkinsUrl + "job/"+ jenkinsJob +"/buildWithParameters?revision="+sha+"&uuid="+uuid).POST.as_!(username, password)
+  def startBuild(sha: String, uuid: String, recipients: String, username: String = jenkinsUsername, password: String = jenkinsPassword): Boolean = {
+    val baseReq = url(jenkinsUrl + "job/"+ jenkinsJob +"/buildWithParameters")
+    val withParams = baseReq << Map("revision" -> sha, "uuid" -> uuid, "recipients" -> recipients)
+    val req = withParams.POST.as_!(username, password)
     val res = silentHttp(req >:+ { (headers, req) =>
       // todo: check stuff with header, fail if problem
 
