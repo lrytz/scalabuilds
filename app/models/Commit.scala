@@ -31,7 +31,7 @@ case object Commit {
         Commit(sha, new Date(commitDate), githubUser, authorName, State(state), jenkinsBuild, jenkinsBuildUUID, buildSuccess)
     }
   }
-  
+
   def commit(sha: String): Option[Commit] = {
     DB.withConnection { implicit c =>
       SQL("select * from commit where sha={sha}").on(
@@ -39,7 +39,7 @@ case object Commit {
           ).as(commitParser *)
     }.headOption
   }
-  
+
   def commits(page: Int, num: Int = commitsPerPage): List[Commit] = {
     DB.withConnection { implicit c =>
       SQL("select * from commit order by commitDate desc limit {num} offset {offset}").on(

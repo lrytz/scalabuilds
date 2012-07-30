@@ -119,6 +119,23 @@ object JenkinsTools {
     true
   }
 
-  def searchJenkinsCommit(buildUUID: String): Option[JenkinsBuildInfo] =
-    buildStream().find(_.buildUUID == buildUUID)
+  def searchJenkinsCommit(buildUUID: String): Option[JenkinsBuildInfo] = {
+    import models.BuildUUID
+
+    BuildUUID.buildNumber(buildUUID) match {
+      case Some(uuidEntry) =>
+        buildDetails(uuidEntry.jenkinsBuild)
+
+      case None =>
+        val allIds = existingBuilds()
+        val idsInDB = BuildUUID.existingBuildNumbers()
+        val newIds = allIds diff idsInDB
+        Logger.info("Looking for UUID "+ buildUUID +", checking new builds: "+ newIds)
+        buildStream(newIds).find(buildInfo => {
+          // add everything we parse to the DB
+          BuildUUID.add(buildInfo.buildUUID, buildInfo.buildId)
+          buildInfo.buildUUID == buildUUID
+        })
+    }
+  }
 }
