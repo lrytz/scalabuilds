@@ -77,6 +77,14 @@ heroku
 - sql console
     https://github.com/ddollar/heroku-sql-console
 
+- dump / backup database (https://devcenter.heroku.com/articles/pgbackups)
+    heroku addons:add pgbackups
+    heroku pgbackups (list existing)
+    heroku pgbackups:capture (new backup)
+    heroku pgbackups:url b004 (get download url)
+    heroku pgbackups:destroy b003
+
+
 
 
 http://devcenter.heroku.com/articles/import-data-heroku-postgres

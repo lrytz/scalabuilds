@@ -37,7 +37,7 @@ object JenkinsTools {
     })
     val builds = (res \ "builds").arrayValues.map(_.convertTo[JenkinsBuild])
     val r = builds.map(_.number)
-    Logger.info("existing builds: "+ r)
+    Logger.info("found "+ r.length +" existing builds")
     r
   }
   
@@ -62,6 +62,7 @@ object JenkinsTools {
         JsonParser(jsonString)
       }
     })
+    Logger.info("got build details json for #"+ buildId)
 
     val actions = (res \ "actions").arrayValues
     val params = actions.filter(_.hasFieldNamed("parameters")) match{
@@ -118,6 +119,23 @@ object JenkinsTools {
     true
   }
 
-  def searchJenkinsCommit(buildUUID: String): Option[JenkinsBuildInfo] =
-    buildStream().find(_.buildUUID == buildUUID)
+  def searchJenkinsCommit(buildUUID: String): Option[JenkinsBuildInfo] = {
+    import models.BuildUUID
+
+    BuildUUID.buildNumber(buildUUID) match {
+      case Some(uuidEntry) =>
+        buildDetails(uuidEntry.jenkinsBuild)
+
+      case None =>
+        val allIds = existingBuilds()
+        val idsInDB = BuildUUID.existingBuildNumbers()
+        val newIds = allIds diff idsInDB
+        Logger.info("Looking for UUID "+ buildUUID +", checking new builds: "+ newIds)
+        buildStream(newIds).find(buildInfo => {
+          // add everything we parse to the DB
+          BuildUUID.add(buildInfo.buildUUID, buildInfo.buildId)
+          buildInfo.buildUUID == buildUUID
+        })
+    }
+  }
 }
