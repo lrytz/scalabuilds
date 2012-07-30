@@ -14,6 +14,7 @@ import play.api.Play.current
 import akka.actor.Props
 import akka.util.duration._
 import play.api.libs.concurrent.Promise
+import java.util.concurrent.TimeoutException
 
 import anorm._
 import java.util.UUID
@@ -24,8 +25,8 @@ import github._
 import jenkins._
 import models._
 
-import UpdateRepoActor.submitUpdateTask
-import BuildTasksDispatcher.{submitBuildTask, submitRequiredBuildTask}
+import UpdateRepoActor.{submitUpdateTaskAwait, appStateAwait}
+import BuildTasksDispatcher.{submitBuildTaskAwait, submitBuildTaskFuture, busyListAwait}
 
 object Application extends Controller {
 
@@ -38,9 +39,9 @@ object Application extends Controller {
   if (Config.enablePollings)
     Akka.system.scheduler.schedule(30 seconds, Config.updatePollFrequency, updateRepoActor, "update")
   
-  val refreshRunningBuildsActor = Akka.system.actorOf(Props[RefreshRunningBuildsActor])
+  val refreshBuildsActor = Akka.system.actorOf(Props[RefreshBuildsActor])
   if(Config.enablePollings)
-    Akka.system.scheduler.schedule(30 seconds, Config.refreshRunningBuildsFrequency, refreshRunningBuildsActor, "refresh")
+    Akka.system.scheduler.schedule(1 minute, Config.refreshRunningBuildsFrequency, refreshBuildsActor, "refresh")
 
   val buildTasksDispatcherActor = Akka.system.actorOf(Props[BuildTasksDispatcher])
 
@@ -99,15 +100,20 @@ object Application extends Controller {
     if (page < 1) NotFound(views.html.error("Page index out of bounds: "+ page))
     else {
       val commits = Commit.commits(page = page)
-      val refreshing = BuildTasksDispatcher.busyList
-      Ok(views.html.index(commits, refreshing, UpdateRepoActor.appState, page, isAuth))
+      handleTimeout(e => "Timeout when reading list of refreshing commits: "+ e.toString) {
+        val refreshing = busyListAwait
+        Ok(views.html.index(commits, refreshing, appStateAwait, page, isAuth))
+      }
     }
   }
 
   def revPage(sha: String) = Action { implicit request =>
-    val isRefreshing = BuildTasksDispatcher.busyList(sha)
     Commit.commit(sha) match {
-      case Some(c) => Ok(views.html.revision(c, isRefreshing, Config.jenkinsJob, isAuth))
+      case Some(c) =>
+        handleTimeout(e => "Timeout when reading list of refreshing commits: "+ e.toString) {
+          val isRefreshing = busyListAwait(sha)
+          Ok(views.html.revision(c, isRefreshing, Config.jenkinsJob, isAuth))
+        }
       case None => NotFound(views.html.error("Unknown commit hash: "+ sha))
     }
   }
@@ -141,27 +147,35 @@ object Application extends Controller {
 */
 
   def startBuild(sha: String) = AuthAction { _ =>
-    val ok = submitBuildTask(sha, doStartBuild(sha, Config.manualBuildRecipients))
-    if (ok) Redirect(routes.Application.revPage(sha))
-    else Conflict(views.html.error("Could not start build, action in progress for "+ sha))
+    handleTimeout(e => "Timeout while queuing build task (build might or might not be scheduled): "+ e.toString) {
+      val ok = submitBuildTaskAwait(sha, doStartBuild(sha, Config.manualBuildRecipients))
+      if (ok) Redirect(routes.Application.revPage(sha))
+      else Conflict(views.html.error("Could not start build, action in progress for "+ sha))
+    }
   }
 
   def cancelBuild(sha: String) = AuthAction { _ =>
-    val ok = submitBuildTask(sha, doCancel(sha))
-    if (ok) Redirect(routes.Application.revPage(sha))
-    else Conflict(views.html.error("Could not cancel build, action in progress for "+ sha))
+    handleTimeout(e => "Timeout while canceling build (build might or might not be canceled): "+ e.toString) {
+      val ok = submitBuildTaskAwait(sha, doCancel(sha))
+      if (ok) Redirect(routes.Application.revPage(sha))
+      else Conflict(views.html.error("Could not cancel build, action in progress for "+ sha))
+    }
   }
 
   def refresh(sha: String) = AuthAction { _ =>
-    val ok = submitBuildTask(sha, doRefresh(sha))
-    if (ok) Redirect(routes.Application.revPage(sha))
-    else Conflict("Could not refresh build, action in progress for "+ sha)
+    handleTimeout(e => "Timeout while submitting refresh task (refresh action might or might not be scheduled): "+ e.toString) {
+      val ok = submitBuildTaskAwait(sha, doRefresh(sha))
+      if (ok) Redirect(routes.Application.revPage(sha))
+      else Conflict("Could not refresh build, action in progress for "+ sha)
+    }
   }
 
   
   def updateRepo() = AuthAction { _ =>
-    if (submitUpdateTask()) Redirect(routes.Application.index())
-    else Conflict(views.html.error("Repository update already in progress."))
+    handleTimeout(e => "Timeout while submitting repo refresh task (task might or might not be scheduled)"+ e.toString) {
+      if (submitUpdateTaskAwait()) Redirect(routes.Application.index())
+      else Conflict(views.html.error("Repository update already in progress."))
+    }
   }
 
   def refreshAll() = AuthAction { _ =>
@@ -169,6 +183,18 @@ object Application extends Controller {
     Redirect(routes.Application.index())
   }
 
+  
+  /**
+   * Some random tools
+   */
+  def handleTimeout(timeoutMsg: TimeoutException => String)(page: => Result) = {
+    try { page }
+    catch {
+      case e: TimeoutException =>
+        RequestTimeout(views.html.error(timeoutMsg(e)))
+    }
+  }
+  
 
   /**
    * The application logic
@@ -178,17 +204,17 @@ object Application extends Controller {
     Commit.commit(sha) match {
       case Some(commit) =>
         commit.state match {
-          case Missing | Done =>
-            if (commit.state == Missing) {
-              Logger.info("Starting new build for "+ commit)
-            } else {
+          case Missing | New | Done =>
+            if (commit.state == Done) {
               doCancel(sha)
               Logger.info("Re-building "+ commit)
+            } else {
+              Logger.info("Starting new build for "+ commit)
             }
             val uuid = UUID.randomUUID.toString
-            Commit.updateState(sha, Searching)
-            Commit.updateJenkinsBuildUUID(sha, Some(uuid))
             JenkinsTools.startBuild(sha, uuid, recipients)
+            Commit.updateJenkinsBuildUUID(sha, Some(uuid))
+            Commit.updateState(sha, Searching)
             
           case Searching | Running | Downloading =>
             Logger.error("Cannot start running build: "+ commit)
@@ -206,8 +232,8 @@ object Application extends Controller {
         commit.state match {
           case Missing =>
             Logger.error("Commit is not running, cannot cancel: "+ commit)
-        
-          case Searching | Running | Downloading | Done =>
+            
+          case New | Searching | Running | Downloading | Done =>
             Logger.info("Canceling "+ commit)
             Commit.updateJenkinsBuild(sha, None)
             Commit.updateJenkinsBuildUUID(sha, None)
@@ -222,12 +248,20 @@ object Application extends Controller {
     }
   }
 
-  
+
   private[controllers] def doRefreshAll() {
-    for (commit <- Commit.runningCommits) {
+    val futures = for (commit <- Commit.runningCommits) yield {
       Logger("refreshing build "+ commit)
-      val ok = submitBuildTask(commit.sha, doRefresh(commit.sha))
-      if (!ok) Logger.info("could not refresh build "+ commit.sha)
+      (submitBuildTaskFuture(commit.sha, doRefresh(commit.sha)), commit.sha)
+    }
+    futures foreach { case (f, sha) =>
+      f onComplete {
+        case Left(exc) =>
+          Logger.error("Error while refreshing build"+ sha +": "+ exc.toString)
+        case Right(ok) =>
+          if (ok) Logger.info("refresh task submitted for "+ sha)
+          else Logger.info("could not refresh build "+ sha)
+      }
     }
   }
   
@@ -236,12 +270,17 @@ object Application extends Controller {
    */
   private def doRefresh(sha: String) {
     import JenkinsTools._
-    
+
     Commit.commit(sha) match {
       case Some(commit) =>
         commit.state match {
           case Missing | Done =>
             Logger.info("Nothing to refresh for commit "+ commit)
+
+          case New =>
+            Logger.info("Found `new` commit, starting build: "+ sha)
+            doStartBuild(commit.sha, Config.newCommitBuildRecipients)
+
           case Searching =>
             searchJenkinsCommit(commit.jenkinsBuildUUID.get) match {
               case Some(buildInfo) =>
@@ -273,6 +312,7 @@ object Application extends Controller {
             }
 
           case Downloading =>
+            // see above: when calling `storeArtifacts`, we already set the state to `Done` at the end.
             Logger.info("Nothing to refresh while downloading "+ commit)
         }
 
@@ -298,22 +338,42 @@ object Application extends Controller {
     val commits = Commit.commits(page = 1, num = 1)
     if (commits.isEmpty) {
       Logger.error("No existing commits found when trying doUpdateRepo")
-      Nil
     } else {
       val latest = commits.head
       // reverse the list of new commit hashes. this way the jenkins jobs
       // for older commits are triggered first.
-      val newShas = newCommitsSince(latest.sha).reverse
+      val newShas = try {
+        newCommitsSince(latest.sha).reverse
+      } catch {
+        case e: Exception =>
+          Logger.error("Exception while reading new commits from rev-lister: "+ e.toString)
+          Nil
+      }
       if (newShas.isEmpty) {
         Logger.info("No new commits.")
       } else {
-        val newCommits = newShas.map(GithubTools.revisionInfo(_))
+        val newCommits = try {
+          newShas.map(GithubTools.revisionInfo(_))
+        } catch {
+          case e: Exception =>
+            Logger.error("New commits: "+ newShas)
+            Logger.error("Exception while reading commit details from github: "+ e.toString)
+            Nil
+        }
         //val newCommits = GithubTools.revisionStream().takeWhile(_.sha != latest.sha).toList
         Logger.info("Fetched new commits: "+ newCommits)
         Commit.addCommits(newCommits)
-        for (commit <- newCommits) {
-          val ok = submitRequiredBuildTask(commit.sha, doStartBuild(commit.sha, Config.newCommitBuildRecipients))
-          if (!ok) Logger.info("start build task delayed "+ commit.sha)
+        val futures = newCommits.map(c =>
+          (submitBuildTaskFuture(c.sha, doStartBuild(c.sha, Config.newCommitBuildRecipients)), c.sha))
+
+        futures foreach { case (f, sha) => 
+          f onComplete {
+            case Left(exc) =>
+              Logger.error("Error while submitting new build task for "+ sha +": "+ exc.toString)
+            case Right(ok) =>
+              if (ok) Logger.info("new build task submitted for "+ sha)
+              else Logger.info("could not submit a new build task for "+ sha)
+          }
         }
       }
     }

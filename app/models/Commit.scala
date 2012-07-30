@@ -51,7 +51,8 @@ case object Commit {
   
   def runningCommits(): List[Commit] = {
     DB.withConnection { implicit c =>
-      SQL("select * from commit where state in ({search}, {run}, {download}) order by commitDate desc").on(
+      SQL("select * from commit where state in ({new}, {search}, {run}, {download}) order by commitDate desc").on(
+          'new -> New.toString,
           'search -> Searching.toString,
           'run -> Running.toString,
           'download -> Downloading.toString
@@ -124,6 +125,7 @@ sealed trait State {
     if (isRefreshing && this != Downloading) "refreshing build state... (hit reload)"
     else this match {
       case Missing     => "no build available"
+      case New         => "build not yet started"
       case Searching   => "build started, looking for jenkins build"
       case Running     => "build running"
       case Downloading => "downloading artifacts... (hit reload)"
@@ -134,6 +136,7 @@ sealed trait State {
 object State {
   val mapToString: Map[State, String] = Map(
     Missing     -> "missing",
+    New         -> "new",
     Searching   -> "searching",
     Running     -> "running",
     Downloading -> "downloading",
@@ -143,8 +146,9 @@ object State {
   def apply(s: String): State = mapToString.map(_.swap).apply(s)
 }
 
-case object Missing     extends State
-case object Searching   extends State // reference to worker?
+case object Missing     extends State // old commits: no build available, and we don't want to build now
+case object New         extends State // new commits that we still want to build
+case object Searching   extends State
 case object Running     extends State
 case object Downloading extends State
 case object Done        extends State

@@ -22,6 +22,17 @@
           <input type="submit" value="start jenkins build"/>
         }</p>
       }
+
+      case New => {
+        <p>@commit.state.describe(refreshing)</p>
+        <p>@aform(routes.Application.refresh(commit.sha)) {
+          <input type="submit" value="start build now"/>
+        }</p>
+        <p>Actions - <strong>careful</strong>, cannot be undone!</p>
+        <p>@aform(routes.Application.cancelBuild(commit.sha)) {
+          <input type="submit" value="remove from build queue"/>
+        }</p>
+      }
   
       case Searching => {
         <p>@commit.state.describe(refreshing) (UUID: @commit.jenkinsBuildUUID.get)</p>
