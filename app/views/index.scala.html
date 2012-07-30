@@ -23,6 +23,8 @@
     <p>@form(routes.Application.refreshAll()) {
       <input type="submit" value="refresh all build states"/>
     }</p>
+
+    <p>Number of tasks in queue: @{refreshing.size}</p>
   }
 
   <ul>

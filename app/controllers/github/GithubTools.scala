@@ -59,7 +59,7 @@ object GithubTools {
       parseISO8601(commit.commit.committer.date),
       commit.author.map(u => u.login),
       commit.commit.author.name,
-      Missing,
+      New,
       None,
       None,
       None

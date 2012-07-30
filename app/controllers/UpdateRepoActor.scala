@@ -71,96 +71,80 @@ object UpdateRepoActor {
   import timeout.{duration => dur}
   import Application.{updateRepoActor => upAct}
 
-  def appState: UpdateState = {
+  def appStateAwait: UpdateState = {
     Await.result((upAct ? "state").mapTo[UpdateState], dur)
   }
   
-  def submitUpdateTask() = {
+  def submitUpdateTaskAwait() = {
     Await.result((upAct ? "update").mapTo[Boolean], dur)
   }
 }
 
 
 
-class RefreshRunningBuildsActor extends Actor {
+class RefreshBuildsActor extends Actor {
   def receive = {
     case "refresh" =>
-      Logger.info("refreshing running builds")
+      Logger.info("refreshing builds")
       Application.doRefreshAll()
-    case m =>
-      Logger.error("refresh build actor does not understand message "+ m)
   }
 }
 
 
-case class RequiredBuildTask(sha: String, action: () => Unit)
 case class BuildTask(sha: String, action: () => Unit)
 case class BuildTaskDone(sha: String)
 
 class BuildTasksDispatcher extends Actor {
+  
   /**
-   * Contains the commits for which a task is running
+   * Tasks to be executed; tehre is always at most one task per commit hash in
+   * this queue.
    */
-  private var busyList: imm.Set[String] = imm.Set()
+  private var taskQueue: imm.Queue[BuildTask] = imm.Queue()
+  
+  private def enqueue(t: BuildTask) { taskQueue = taskQueue.enqueue(t) }
+  private def remove(sha: String) { taskQueue = taskQueue.filterNot(_.sha == sha) }
 
-  /**
-   * For every commit a list of tasks that need to be executed. A task for a commit is delayed
-   * when another task for that commit is already running (i.e. busyList contains the commit).
-   */
-  private var delayedRequiredTasks: imm.Map[String, List[() => Unit]] = Map().withDefaultValue(Nil)
-
-  def delay(t: RequiredBuildTask) = synchronized {
-    delayedRequiredTasks = delayedRequiredTasks.updated(t.sha, t.action :: delayedRequiredTasks(t.sha))
+  private def freeFor(sha: String) = taskQueue.forall(_.sha != sha)
+  
+  private def run(t: BuildTask) {
+    RunAsync(t.action(), self ! BuildTaskDone(t.sha))
   }
 
-  def popDelayed(sha: String): Option[() => Unit] = synchronized {
-    val tasks = delayedRequiredTasks(sha)
-    if (tasks.isEmpty) {
-      None
-    } else {
-      delayedRequiredTasks = delayedRequiredTasks.updated(sha, tasks.tail)
-      Some(tasks.head)
-    }
-  }
+  def free: Receive = {
+    case t: BuildTask =>
+      context.become(busy)
+      enqueue(t)
+      run(t)
+      sender ! true
 
-  private def run(sha: String, action: () => Unit) {
-    RunAsync(action(), self ! BuildTaskDone(sha))
-  }
-
-  def receive = {
-    case rt @ RequiredBuildTask(sha, action) => synchronized {
-      if (busyList(sha)) {
-        delay(rt)
-        sender ! false
-      } else {
-        busyList += sha
-        run(sha, action)
-        sender ! true
-      }
-    }
-
-    case BuildTask(sha, action) => synchronized {
-      if (busyList(sha)) {
-        sender ! false
-      } else {
-        busyList += sha
-        run(sha, action)
-        sender ! true
-      }
-    }
-      
-    case BuildTaskDone(sha) => synchronized {
-      popDelayed(sha) match {
-        case Some(action) =>
-          run(sha, action)
-        case None =>
-          busyList -= sha
-      }
-    }
-      
     case "busyList" =>
-      sender ! busyList
+      sender ! Set()
   }
+  
+  def busy: Receive = {
+    case t: BuildTask =>
+      if (freeFor(t.sha)) {
+        enqueue(t)
+        sender ! true
+      } else {
+        sender ! false
+      }
+      
+    case BuildTaskDone(sha) =>
+      remove(sha)
+      if (taskQueue.isEmpty) {
+        context.become(free)
+      } else {
+        run(taskQueue.head)
+      }
+
+    case "busyList" =>
+      val r: Set[String] = taskQueue.map(_.sha)(scala.collection.breakOut)
+      sender ! r
+  }
+  
+  def receive = free
 }
 
 object BuildTasksDispatcher {
@@ -168,15 +152,15 @@ object BuildTasksDispatcher {
   import timeout.{duration => dur}
   import Application.{buildTasksDispatcherActor => dispatcher}
 
-  def busyList = {
+  def busyListAwait = {
     Await.result((dispatcher ? "busyList").mapTo[imm.Set[String]], dur)
   }
-  
-  def submitBuildTask(sha: String, action: => Unit) = {
+
+  def submitBuildTaskAwait(sha: String, action: => Unit) = {
     Await.result((dispatcher ? BuildTask(sha, () => action)).mapTo[Boolean], dur)
   }
-
-  def submitRequiredBuildTask(sha: String, action: => Unit) = {
-    Await.result((dispatcher ? RequiredBuildTask(sha, () => action)).mapTo[Boolean], dur)
+  
+  def submitBuildTaskFuture(sha: String, action: => Unit) = {
+    (dispatcher ? BuildTask(sha, () => action)).mapTo[Boolean]
   }
 }
