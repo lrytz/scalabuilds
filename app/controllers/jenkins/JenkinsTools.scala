@@ -37,7 +37,7 @@ object JenkinsTools {
     })
     val builds = (res \ "builds").arrayValues.map(_.convertTo[JenkinsBuild])
     val r = builds.map(_.number)
-    Logger.info("existing builds: "+ r)
+    Logger.info("found "+ r.length +" existing builds")
     r
   }
   
@@ -62,6 +62,7 @@ object JenkinsTools {
         JsonParser(jsonString)
       }
     })
+    Logger.info("got build details json for #"+ buildId)
 
     val actions = (res \ "actions").arrayValues
     val params = actions.filter(_.hasFieldNamed("parameters")) match{
