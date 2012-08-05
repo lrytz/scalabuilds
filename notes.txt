@@ -2,6 +2,8 @@
 TODOS
 *****
 
+ - https://github.com/typesafehub/play-plugins/tree/master/mailer
+
  - ??? new library for json: https://github.com/jrudolph/json-lenses/
 
 
