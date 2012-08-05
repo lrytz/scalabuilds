@@ -4,7 +4,7 @@
 
 # Sql Script
 
-GET     /sql                         controllers.Application.sql()
+# GET     /sql                         controllers.Application.sql()
 
 # Login
 
