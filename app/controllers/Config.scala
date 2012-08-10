@@ -8,8 +8,8 @@ object Config {
   
   lazy val enablePollings = Setting.setting("enablePollings") == "true"
   
-  val updatePollFrequency = 1 minute
-  val refreshRunningBuildsFrequency = 5 minutes
+  val updatePollFrequency = 3 minutes
+  val refreshRunningBuildsFrequency = 15 minutes
   
   val githubUser = "scala"
   val githubRepo = "scala"
