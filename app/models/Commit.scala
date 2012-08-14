@@ -49,7 +49,7 @@ case object Commit {
     }
   }
   
-  def runningCommits(): List[Commit] = {
+  def unfinishedCommits: List[Commit] = {
     DB.withConnection { implicit c =>
       SQL("select * from commit where state in ({new}, {search}, {run}, {download}) order by commitDate desc").on(
           'new -> New.toString,
@@ -58,6 +58,15 @@ case object Commit {
           'download -> Downloading.toString
           ).as(commitParser *)
     }
+  }
+
+  def existsRunningBuild: Boolean = {
+    val nbRunning: Long = DB.withConnection { implicit c =>
+      SQL("select count(*) from commit where state in ({run})").on(
+          'run -> Running.toString
+          ).as(scalar[Long].single)
+    }
+    nbRunning != 0l
   }
 
   def addCommits(commits: List[Commit]) {

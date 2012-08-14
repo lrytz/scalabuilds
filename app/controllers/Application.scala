@@ -250,7 +250,7 @@ object Application extends Controller {
 
 
   private[controllers] def doRefreshAll() {
-    val futures = for (commit <- Commit.runningCommits) yield {
+    val futures = for (commit <- Commit.unfinishedCommits) yield {
       Logger("refreshing build "+ commit)
       (submitBuildTaskFuture(commit.sha, doRefresh(commit.sha)), commit.sha)
     }
@@ -291,6 +291,13 @@ object Application extends Controller {
 
               case None =>
                 Logger.info("No jenkins build found for "+ commit)
+                if (!Commit.existsRunningBuild) {
+                  // sometimes jenkins just doesn't start a build. this makes sure that no builds remain
+                  // in "searching" state.
+                  Logger.info("There are no more running builds. Therefore re-starting a build for "+ commit)
+                  cancelBuild(commit.sha)
+                  Commit.updateState(commit.sha, New)
+                }
             }
 
           case Running =>
