@@ -20,15 +20,16 @@ object GitRepo {
     Process("git pull origin master", someRepoFile).!!
   }
   
-  def newCommitsSince(sha: String): Either[Throwable, List[String]] = {
+  def runRevList(arg: String): Either[Throwable, List[String]] = {
     try {
       if (!repoPath.exists) {
         cloneGitRepo()
       }
       pullLatest()
-      Right(Process("git rev-list HEAD ^"+ sha, someRepoFile).lines.toList)
+      println("git rev-list "+ arg)
+      Right(Process("git rev-list "+ arg, someRepoFile).lines.toList)
     } catch {
-      case e =>
+      case e: Exception =>
         Left(e)
     }
   }
