@@ -23,6 +23,7 @@ import collection.{mutable => imm}
 
 import github._
 import jenkins._
+import revlist._
 import models._
 
 import UpdateRepoActor.{submitUpdateTaskAwait, appStateAwait}
@@ -330,50 +331,37 @@ object Application extends Controller {
   }
 
   
-  private def newCommitsSince(sha: String) = {
-    import dispatch._
-    val req = url(Config.revListerUrl + sha)
-    silentHttp(req >- { res =>
-      res match {
-        case "" => Nil
-        case s  => s.split(",").toList
-      }
-    })
-  }
-
   private[controllers] def doUpdateRepo() {
-    val commits = Commit.commits(page = 1, num = 1)
-    if (commits.isEmpty) {
-      Logger.error("No existing commits found when trying doUpdateRepo")
-    } else {
-      val latest = commits.head
-      // reverse the list of new commit hashes. this way the jenkins jobs
-      // for older commits are triggered first.
-      val newShas = try {
-        newCommitsSince(latest.sha).reverse
+    for (branch <- Branch.allBranches) {
+      val newShasInBranch = try {
+        RevLister.newCommitsIn(branch)
       } catch {
         case e: Exception =>
           Logger.error("Exception while reading new commits from rev-lister: "+ e.toString)
           Nil
       }
-      if (newShas.isEmpty) {
-        Logger.info("No new commits.")
+      if (newShasInBranch.isEmpty) {
+        Logger.info("No new commits in branch "+ branch.name)
       } else {
         val newCommits = try {
+          Branch.setLastKnownHead(branch, newShasInBranch.head)
+          val newShas = newShasInBranch.filter(Commit.commit(_).isEmpty)
           newShas.map(GithubTools.revisionInfo(_))
         } catch {
           case e: Exception =>
-            Logger.error("New commits: "+ newShas)
+            Logger.error("New commits: "+ newShasInBranch)
             Logger.error("Exception while reading commit details from github: "+ e.toString)
             Nil
         }
-        //val newCommits = GithubTools.revisionStream().takeWhile(_.sha != latest.sha).toList
         Logger.info("Fetched new commits: "+ newCommits)
         Commit.addCommits(newCommits)
-        val futures = newCommits.map(c =>
+
+        // reverse the list of new commit hashes. this way the jenkins jobs
+        // for older commits are triggered first.
+        val futures = newCommits.reverse.map(c =>
           (submitBuildTaskFuture(c.sha, doStartBuild(c.sha, Config.newCommitBuildRecipients)), c.sha))
 
-        futures foreach { case (f, sha) => 
+        futures foreach { case (f, sha) =>
           f onComplete {
             case Left(exc) =>
               Logger.error("Error while submitting new build task for "+ sha +": "+ exc.toString)
@@ -411,13 +399,6 @@ object Application extends Controller {
       }
     })
 
-    Redirect(routes.Application.index())
-  }
-
-  def initRepo() = AuthAction { _ =>
-    val shas = newCommitsSince(Config.oldestImportedCommit).filter(r => (Commit.commit(r).isEmpty))
-    val commits = shas.map(sha => GithubTools.revisionInfo(sha))
-    Commit.addCommits(commits)
     Redirect(routes.Application.index())
   }
 }
