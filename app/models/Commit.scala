@@ -49,21 +49,25 @@ case object Commit {
     }
   }
   
-  def unfinishedCommits: List[Commit] = {
+  def commitsToRefresh: List[Commit] = {
     DB.withConnection { implicit c =>
-      SQL("select * from commit where state in ({new}, {search}, {run}, {download}) order by commitDate desc").on(
+      SQL("select * from commit where state in ({new}, {search}, {queue}, {run}, {download}) order by commitDate desc").on(
           'new -> New.toString,
           'search -> Searching.toString,
+          'queue -> Queued.toString,
           'run -> Running.toString,
           'download -> Downloading.toString
           ).as(commitParser *)
     }
   }
 
-  def existsRunningBuild: Boolean = {
+  def existsActiveBuild: Boolean = {
     val nbRunning: Long = DB.withConnection { implicit c =>
-      SQL("select count(*) from commit where state in ({run})").on(
-          'run -> Running.toString
+      SQL("select count(*) from commit where state in ({new}, {search}, {run}, {download})").on(
+          'new -> New.toString,
+          'search -> Searching.toString,
+          'run -> Running.toString,
+          'download -> Downloading.toString
           ).as(scalar[Long].single)
     }
     nbRunning != 0l
@@ -136,6 +140,7 @@ sealed trait State {
       case Missing     => "no build available"
       case New         => "build not yet started"
       case Searching   => "build started, looking for jenkins build"
+      case Queued      => "build in jenkins build queue"
       case Running     => "build running"
       case Downloading => "downloading artifacts... (hit reload)"
       case Done        => "build available"
@@ -147,6 +152,7 @@ object State {
     Missing     -> "missing",
     New         -> "new",
     Searching   -> "searching",
+    Queued      -> "queued",
     Running     -> "running",
     Downloading -> "downloading",
     Done        -> "done"
@@ -158,6 +164,7 @@ object State {
 case object Missing     extends State // old commits: no build available, and we don't want to build now
 case object New         extends State // new commits that we still want to build
 case object Searching   extends State
+case object Queued      extends State
 case object Running     extends State
 case object Downloading extends State
 case object Done        extends State

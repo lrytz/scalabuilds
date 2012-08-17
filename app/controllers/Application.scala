@@ -217,7 +217,7 @@ object Application extends Controller {
             Commit.updateJenkinsBuildUUID(sha, Some(uuid))
             Commit.updateState(sha, Searching)
             
-          case Searching | Running | Downloading =>
+          case Searching | Queued | Running | Downloading =>
             Logger.error("Cannot start running build: "+ commit)
         }
         
@@ -234,7 +234,7 @@ object Application extends Controller {
           case Missing =>
             Logger.error("Commit is not running, cannot cancel: "+ commit)
             
-          case New | Searching | Running | Downloading | Done =>
+          case New | Searching | Queued | Running | Downloading | Done =>
             Logger.info("Canceling "+ commit)
             Commit.updateJenkinsBuild(sha, None)
             Commit.updateJenkinsBuildUUID(sha, None)
@@ -251,7 +251,7 @@ object Application extends Controller {
 
 
   private[controllers] def doRefreshAll() {
-    val futures = for (commit <- Commit.unfinishedCommits) yield {
+    val futures = for (commit <- Commit.commitsToRefresh) yield {
       Logger("refreshing build "+ commit)
       (submitBuildTaskFuture(commit.sha, doRefresh(commit.sha)), commit.sha)
     }
@@ -288,14 +288,25 @@ object Application extends Controller {
                 Logger.info("Found jenkins build "+ buildInfo +" for "+ commit)
                 Commit.updateJenkinsBuild(sha, Some(buildInfo.buildId))
                 Commit.updateState(sha, Running)
-                doRefresh(sha)
 
               case None =>
-                Logger.info("No jenkins build found for "+ commit)
-                if (!Commit.existsRunningBuild) {
+                Logger.info("Build is in jenkins queue: "+ commit)
+                Commit.updateState(sha, Queued)
+            }
+
+          case Queued =>
+            searchJenkinsCommit(commit.jenkinsBuildUUID.get) match {
+              case Some(buildInfo) =>
+                Logger.info("Jenkins build "+ buildInfo +" moved from build queue to building: "+ commit)
+                Commit.updateJenkinsBuild(sha, Some(buildInfo.buildId))
+                Commit.updateState(sha, Running)
+
+              case None =>
+                Logger.info("Build still in queue "+ commit)
+                if (!Commit.existsActiveBuild) {
                   // sometimes jenkins just doesn't start a build. this makes sure that no builds remain
                   // in "searching" state.
-                  Logger.info("There are no more running builds. Therefore re-starting a build for "+ commit)
+                  Logger.info("There are no active running builds. Therefore re-starting a build for "+ commit)
                   cancelBuild(commit.sha)
                   Commit.updateState(commit.sha, New)
                 }
