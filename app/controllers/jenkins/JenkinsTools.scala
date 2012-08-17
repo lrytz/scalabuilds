@@ -41,7 +41,7 @@ object JenkinsTools {
     r
   }
   
-  def buildStream(buildIds: List[Int] = existingBuilds()): Stream[JenkinsBuildInfo] = buildIds match {
+  def buildStream(buildIds: List[Int]): Stream[JenkinsBuildInfo] = buildIds match {
     case Nil => Stream.empty
     case x :: xs =>
       buildDetails(x) match {

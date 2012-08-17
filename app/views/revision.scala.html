@@ -34,7 +34,7 @@
         }</p>
       }
   
-      case Searching => {
+      case Searching | Queued => {
         <p>@commit.state.describe(refreshing) (UUID: @commit.jenkinsBuildUUID.get)</p>
         <p>@aform(routes.Application.refresh(commit.sha)) {
           <input type="submit" value="refresh state"/>
