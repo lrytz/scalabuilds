@@ -6,8 +6,6 @@ logs
 
 dist
 
-jenkinsCredentials.json
-
 /db
 .cache
 /artifacts

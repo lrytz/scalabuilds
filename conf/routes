@@ -25,7 +25,6 @@ GET     /rev/:sha/artifacts/*name    controllers.Application.downloadRedirect(sh
 # Actions
 POST    /update                      controllers.Application.updateRepo()
 POST    /refreshAll                  controllers.Application.refreshAll()
-# GET     /init                        controllers.Application.initRepo()
 
 POST    /rev/:sha/startBuild         controllers.Application.startBuild(sha: String)
 GET     /rev/:sha/startBuild         controllers.Application.startBuild(sha: String)
