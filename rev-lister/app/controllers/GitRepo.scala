@@ -16,8 +16,9 @@ object GitRepo {
     Process("git clone "+ repoUrl +" "+ gitRepoDir, someRepoParentFile).!!
   }
 
-  def pullLatest() {
-    Process("git pull origin master", someRepoFile).!!
+  def fetchLatest() {
+    Process("git fetch -f origin", someRepoFile).!!
+    Process("git reset --hard origin/master", someRepoFile).!!
   }
   
   def runRevList(arg: String): Either[Throwable, List[String]] = {
@@ -25,7 +26,7 @@ object GitRepo {
       if (!repoPath.exists) {
         cloneGitRepo()
       }
-      pullLatest()
+      fetchLatest()
       println("git rev-list "+ arg)
       Right(Process("git rev-list "+ arg, someRepoFile).lines.toList)
     } catch {
