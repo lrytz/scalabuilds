@@ -3,7 +3,7 @@
 # --- !Ups
 
 CREATE TABLE branch (
-    branchName varchar(128) NOT NULL PRIMARY KEY,
+    name varchar(128) NOT NULL PRIMARY KEY,
     lastKnownHead varchar(40) NOT NULL
 );
 

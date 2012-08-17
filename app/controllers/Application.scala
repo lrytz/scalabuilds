@@ -343,9 +343,11 @@ object Application extends Controller {
       if (newShasInBranch.isEmpty) {
         Logger.info("No new commits in branch "+ branch.name)
       } else {
+        Logger.info("New commits for branch "+ branch.name +": "+ newShasInBranch)
         val newCommits = try {
           Branch.setLastKnownHead(branch, newShasInBranch.head)
           val newShas = newShasInBranch.filter(Commit.commit(_).isEmpty)
+          Logger.info("Commits not yet in database: "+ newShas)
           newShas.map(GithubTools.revisionInfo(_))
         } catch {
           case e: Exception =>
