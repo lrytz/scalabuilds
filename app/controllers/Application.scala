@@ -303,7 +303,11 @@ object Application extends Controller {
 
               case None =>
                 Logger.info("Build still in queue "+ commit)
-                if (!Commit.existsActiveBuild) {
+                // disabled the below, because the jenkins REST api no longer lists running builds, see
+                //   https://groups.google.com/d/topic/jenkinsci-users/u88oTJ-nMEU/discussion
+                // this would make a single running build switch to state `New` and therefore enter an
+                // infinite loop
+                if (false && !Commit.existsActiveBuild) {
                   // sometimes jenkins just doesn't start a build. this makes sure that no builds remain
                   // in "searching" state.
                   Logger.info("There are no active running builds. Therefore re-starting a build for "+ commit)
