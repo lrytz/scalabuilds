@@ -25,9 +25,9 @@ object JenkinsTools {
   import JenkinsJsonProtocol._
   import Config._
 
-  def existingBuilds(): List[Int] = {
+  def jobInfoPage(): JsValue = {
     val req = url(jenkinsUrl + "job/"+jenkinsJob+"/api/json")
-    val res = silentHttp(req >:+ { (headers, req) =>
+    silentHttp(req >:+ { (headers, req) =>
       // todo: check stuff with header, fail if problem
 
       // handle request
@@ -35,10 +35,28 @@ object JenkinsTools {
       JsonParser(jsonString)
       }
     })
-    val builds = (res \ "builds").arrayValues.map(_.convertTo[JenkinsBuild])
+  }
+
+  def existingBuilds(jobInfo: JsValue = jobInfoPage()): List[Int] = {
+    val builds = (jobInfo \ "builds").arrayValues.map(_.convertTo[JenkinsBuild])
     val r = builds.map(_.number)
     Logger.info("found "+ r.length +" existing builds")
     r
+  }
+
+  /**
+   * Returns `true` if there exists an active build in jenkins.
+   *
+   * For now, `jobInfoPage` of the  jenkins REST api no longer lists running builds, see
+   *   https://groups.google.com/d/topic/jenkinsci-users/u88oTJ-nMEU/discussion
+   * The `lastBuild` property however contains the last running build (if there's one
+   * running). So we use logic below which is a bit clumsy.
+   */
+  def existsActiveBuild: Boolean = {
+    val jobInfo = jobInfoPage()
+    val lastBuild = (jobInfo \ "lastBuild" \ "number").convertTo[Int]
+    val newestBuild = existingBuilds(jobInfo).max
+    lastBuild != newestBuild || !buildDetails(newestBuild).get.finished
   }
   
   def buildStream(buildIds: List[Int]): Stream[JenkinsBuildInfo] = buildIds match {
