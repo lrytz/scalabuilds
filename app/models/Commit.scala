@@ -61,6 +61,7 @@ case object Commit {
     }
   }
 
+/* not used.
   def existsActiveBuild: Boolean = {
     val nbRunning: Long = DB.withConnection { implicit c =>
       SQL("select count(*) from commit where state in ({new}, {search}, {run}, {download})").on(
@@ -72,6 +73,7 @@ case object Commit {
     }
     nbRunning != 0l
   }
+*/
 
   def addCommits(commits: List[Commit]) {
     for (c <- commits) {
