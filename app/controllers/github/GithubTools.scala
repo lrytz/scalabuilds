@@ -41,7 +41,8 @@ object GithubTools {
   
   def revisionInfo(sha: String): Commit = {
     val req = url("https://api.github.com/repos/"+githubUser+"/"+githubRepo+"/commits/"+ sha)
-    val commit = silentHttp(req >:+ { (headers, req) =>
+    val withUserAgent = req <:< Map("User-Agent" -> "githubUserAgentHeader")
+    val commit = silentHttp(withUserAgent >:+ { (headers, req) =>
       // todo: check stuff with header, fail if problem
 
       // handle request

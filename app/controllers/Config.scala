@@ -13,7 +13,9 @@ object Config {
   
   val githubUser = "scala"
   val githubRepo = "scala"
-  val githubBranch = "master"
+  // val githubBranch = "master"
+
+  val githubUserAgentHeader = "Mozilla/5.0 (https://github.com/lrytz/scalabuilds)"
 
   val jenkinsUrl = "https://scala-webapps.epfl.ch/jenkins/"
   val jenkinsJob = "scala-checkin"
