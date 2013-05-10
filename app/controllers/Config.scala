@@ -28,6 +28,9 @@ object Config {
 
   lazy val jenkinsUsername = Setting.setting("jenkinsUsername")
   lazy val jenkinsPassword = Setting.setting("jenkinsPassword")
+
+  lazy val githubUsername = Setting.setting("githubUsername")
+  lazy val githubPassword = Setting.setting("githubPassword")
   
   val newCommitBuildRecipients = "scala-reports@epfl.ch"
   val manualBuildRecipients    = "lukas.rytz@epfl.ch"
